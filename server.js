@@ -244,7 +244,7 @@ textarea{min-height:280px;font-size:15px;line-height:1.45}
 .check input{width:20px;height:20px;accent-color:#7fdcff}
 .btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;border:0;border-radius:2px;padding:17px 22px;font-size:19px;font-weight:700;letter-spacing:.1em;color:var(--navy);background:#fff;cursor:pointer;box-shadow:0 0 26px rgba(127,220,255,.35);transition:box-shadow .2s,transform .1s}
 .btn:after{content:"";width:9px;height:9px;border-top:2px solid var(--navy);border-right:2px solid var(--navy);transform:rotate(45deg)}
-.btn:hover{box-shadow:0 0 38px rgba(127,220,255,.7)}.btn:active{transform:translateY(1px)}
+@media (hover:hover){.btn:hover{box-shadow:0 0 38px rgba(127,220,255,.7)}}.btn:active{transform:translateY(1px)}
 .btn:disabled{opacity:.4;cursor:default;box-shadow:none}
 .btn.sec{background:transparent;color:#fff;border:1px solid var(--line);box-shadow:none}
 .btn.sec:after{border-color:#fff}
@@ -268,7 +268,9 @@ body.host .tiles{grid-template-columns:1fr 1fr;gap:16px}
 background:rgba(2,24,46,.6);border:1px solid var(--line);border-radius:4px;box-shadow:inset 0 0 22px rgba(127,220,255,.07);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:border-color .2s,box-shadow .2s,opacity .3s}
 body.host .tile{min-height:98px;padding:16px 22px;gap:18px}
 button.tile{cursor:pointer}
-button.tile:hover,.tile.sel{border-color:var(--halo);box-shadow:0 0 0 1px var(--halo),0 0 26px rgba(127,220,255,.5),inset 0 0 26px rgba(127,220,255,.14)}
+button.tile{outline:none}
+.tile.sel{border-color:var(--halo);box-shadow:0 0 0 1px var(--halo),0 0 26px rgba(127,220,255,.5),inset 0 0 26px rgba(127,220,255,.14)}
+@media (hover:hover){button.tile:hover{border-color:var(--halo);box-shadow:0 0 0 1px var(--halo),0 0 26px rgba(127,220,255,.5),inset 0 0 26px rgba(127,220,255,.14)}}
 .tile.good{border-color:#fff;box-shadow:0 0 0 1px #fff,0 0 34px rgba(160,230,255,.75),inset 0 0 30px rgba(127,220,255,.22)}
 .tile.dim{opacity:.5}
 .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,rgba(31,143,208,.28),rgba(127,220,255,.42));border-right:1px solid rgba(127,220,255,.8);transition:width .5s ease;opacity:0}
@@ -490,14 +492,24 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
       return set(header() + '<div class="spacer"></div><div class="card center"><div class="wait"></div><h2>Bienvenue ' + esc(me.name) + '</h2><div class="muted" style="margin-top:8px">Le quiz va bientôt commencer. Gardez cette page ouverte.</div></div><div class="spacer"></div><div class="spacer"></div>');
     }
     if (S.phase === 'question') {
-      return set(header() + qhead(true) + tiles(S.question, { click: me.ans == null, picked: me.ans }) +
-        (me.ans != null ? '<div class="meta center">Réponse enregistrée · <span id="ans"></span></div>' : ''),
-        () => app.querySelectorAll('button[data-c]').forEach(b => b.onclick = () => {
-          if (Date.now() > deadline + 800) return;
-          const c = +b.dataset.c;
-          S.me = { name: me.name, ans: c }; render();
-          if (!demo) post('/api/answer', { code: sess.code, id: sess.id, c }).catch(() => {});
-        }));
+      let pick = null;
+      const done = me.ans != null;
+      return set(header() + qhead(true) + tiles(S.question, { click: !done, picked: me.ans }) +
+        (done ? '<div class="meta center">Réponse validée · <span id="ans"></span></div>'
+              : '<button class="btn" id="vd" disabled>Valider ma réponse</button><div class="muted center">Vous pouvez changer de choix tant que vous n’avez pas validé. Une réponse non validée n’est pas comptée.</div>'),
+        () => {
+          const vd = $('#vd'); if (!vd) return;
+          app.querySelectorAll('button[data-c]').forEach(b => b.onclick = () => {
+            pick = +b.dataset.c;
+            app.querySelectorAll('.tile').forEach((t, i) => t.classList.toggle('sel', i === pick));
+            vd.disabled = false;
+          });
+          vd.onclick = () => {
+            if (pick == null || Date.now() > deadline + 800) return;
+            S.me = { name: me.name, ans: pick }; render();
+            if (!demo) post('/api/answer', { code: sess.code, id: sess.id, c: pick }).catch(() => {});
+          };
+        });
     }
     if (S.phase === 'reveal') {
       return set(header() + qhead(false) + tiles(S.question, { reveal: true, correct: S.correct, picked: me.ans }) + answerCard() + '<div class="meta center" id="ans"></div>');
