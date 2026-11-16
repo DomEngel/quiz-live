@@ -29,27 +29,51 @@ function newCode() {
 }
 function cleanQuestions(qs) {
   if (!Array.isArray(qs)) return null;
+  const str = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
   const out = [];
-  for (const x of qs.slice(0, 60)) {
-    if (!x || typeof x.q !== 'string' || !Array.isArray(x.o) || !x.q.trim()) continue;
+  for (const x of qs.slice(0, 120)) {
+    if (!x) continue;
+    if (x.t === 'scene') { // écran de scène : titre + indication de temps / de lieu
+      const title = str(x.title, 120);
+      const subs = String(x.sub || '').split('\n').map(l => str(l, 140)).filter(Boolean).slice(0, 10); // un temps par ligne
+      if (title) out.push({ t: 'scene', title, subs });
+      continue;
+    }
+    if (x.t === 'info') { // écran de contenu : titre + paragraphes / puces
+      const title = str(x.title, 120);
+      const lines = (Array.isArray(x.lines) ? x.lines : []).slice(0, 14).map(l => str(l, 400)).filter(Boolean);
+      if (title || lines.length) out.push({ t: 'info', title, lines });
+      continue;
+    }
+    if (typeof x.q !== 'string' || !Array.isArray(x.o) || !x.q.trim()) continue;
     const o = x.o.slice(0, 4).map(s => String(s).trim().slice(0, 120)).filter(Boolean);
     let c = Number(x.c);
     if (!Number.isInteger(c) || c < 0 || c >= o.length) c = -1; // -1 = sondage, pas de bonne réponse
     if (o.length < 2) continue;
-    out.push({ q: x.q.trim().slice(0, 250), o, c, e: String(x.e || '').trim().slice(0, 600) });
+    out.push({ t: 'q', q: x.q.trim().slice(0, 250), o, c, e: String(x.e || '').trim().slice(0, 600) });
   }
   return out.length ? out : null;
 }
 function counts(g) {
   const c = g.questions[g.q].o.map(() => 0);
-  for (const p of g.players.values()) if (p.ans != null) c[p.ans]++;
+  for (const p of g.players.values()) if (p.a[g.q] != null) c[p.a[g.q]]++;
   return c;
 }
 function stateFor(g, cl) {
-  const s = { code: g.code, title: g.title, phase: g.phase, q: g.q, total: g.questions.length, n: g.players.size };
   const Q = g.questions[g.q];
+  // i = position dans le déroulé (scènes, contenus, questions) ; q = numéro de question
+  const s = { code: g.code, title: g.title, phase: g.phase, i: g.q, steps: g.questions.length, total: g.nq, n: g.players.size,
+    q: g.questions.slice(0, g.q + 1).filter(x => x.t === 'q').length - 1 };
+  const more = Q && g.phase === 'slide' && Q.t === 'scene' && g.step < Q.subs.length - 1;
+  if (Q && g.phase === 'slide') s.slide = Q.t === 'scene' ? { t: 'scene', title: Q.title, sub: Q.subs[g.step] || '' } : { t: 'info', title: Q.title, lines: Q.lines };
+  if (cl.role === 'host') {
+    const N = g.questions[g.q + 1];
+    s.next = more ? 'sub' : N ? N.t : 'end';
+    s.back = g.phase === 'end' || (g.phase !== 'lobby' && (g.q > 0 || g.step > 0));
+    if (s.slide && Q.t === 'scene' && Q.subs.length > 1) s.part = [g.step + 1, Q.subs.length];
+  }
   const me = cl.role === 'player' ? g.players.get(cl.id) : null;
-  if (me) s.me = { name: me.name, ans: me.ans };
+  if (me) s.me = { name: me.name, ans: me.a[g.q] };
   if (g.phase === 'lobby' && cl.role === 'host') s.names = [...g.players.values()].slice(0, 200).map(p => p.name);
   if (Q && (g.phase === 'question' || g.phase === 'reveal')) {
     s.question = { q: Q.q, o: Q.o };
@@ -59,7 +83,7 @@ function stateFor(g, cl) {
       s.rem = Math.max(0, g.startedAt + g.dur - Date.now());
       s.dur = g.dur;
       // en direct : l'animateur voit tout de suite, un joueur seulement après avoir répondu
-      if (g.live && (cl.role === 'host' || (me && me.ans != null))) s.counts = c;
+      if (g.live && (cl.role === 'host' || (me && me.a[g.q] != null))) s.counts = c;
     } else {
       s.counts = c; s.correct = Q.c; s.expl = Q.e;
     }
@@ -73,7 +97,7 @@ function push(cl, g) {
 function broadcast(g) { g.dirty = false; g.last = Date.now(); for (const cl of g.clients) push(cl, g); }
 
 function beginQuestion(g) {
-  for (const p of g.players.values()) p.ans = null;
+  for (const p of g.players.values()) delete p.a[g.q];
   g.startedAt = Date.now();
   g.phase = 'question';
   broadcast(g);
@@ -85,15 +109,32 @@ function reveal(g) {
   g.phase = 'reveal';
   broadcast(g);
 }
+function show(g, i, back) {
+  g.q = i; g.step = 0;
+  const it = g.questions[i];
+  if (!it) { g.phase = 'end'; broadcast(g); }
+  else if (it.t === 'q') {
+    if (g.results[i]) { g.phase = 'reveal'; broadcast(g); } // question déjà jouée : on réaffiche ses résultats
+    else beginQuestion(g);
+  } else {
+    if (back && it.t === 'scene') g.step = Math.max(0, it.subs.length - 1);
+    g.phase = 'slide'; broadcast(g);
+  }
+}
 function hostAction(g, action) {
-  if (action === 'start' && g.phase === 'lobby') { g.q = 0; beginQuestion(g); }
+  if (action === 'start' && g.phase === 'lobby') show(g, 0);
   else if (action === 'reveal') reveal(g);
-  else if (action === 'next' && g.phase === 'reveal') {
-    if (g.q >= g.questions.length - 1) { g.phase = 'end'; broadcast(g); }
-    else { g.q++; beginQuestion(g); }
+  else if (action === 'next' && (g.phase === 'reveal' || g.phase === 'slide')) {
+    const it = g.questions[g.q];
+    if (g.phase === 'slide' && it.t === 'scene' && g.step < it.subs.length - 1) { g.step++; broadcast(g); }
+    else show(g, g.q + 1);
+  } else if (action === 'prev') {
+    if (g.phase === 'end') show(g, g.questions.length - 1, true);
+    else if (g.phase === 'slide' && g.step > 0) { g.step--; broadcast(g); }
+    else if (g.phase !== 'lobby' && g.q > 0) show(g, g.q - 1, true);
   } else if (action === 'restart') {
-    g.q = -1; g.phase = 'lobby'; g.results = [];
-    for (const p of g.players.values()) p.ans = null;
+    g.q = -1; g.step = 0; g.phase = 'lobby'; g.results = [];
+    for (const p of g.players.values()) p.a = {};
     broadcast(g);
   }
 }
@@ -101,7 +142,7 @@ function tick() {
   const now = Date.now();
   for (const [code, g] of games) {
     if (g.phase === 'question') {
-      const all = g.players.size > 0 && [...g.players.values()].every(p => p.ans != null);
+      const all = g.players.size > 0 && [...g.players.values()].every(p => p.a[g.q] != null);
       if (now >= g.startedAt + g.dur || all) reveal(g);
     }
     if (g.dirty) broadcast(g);
@@ -155,11 +196,11 @@ async function api(req, res, url) {
       return fail(res, 403, 'Mot de passe incorrect');
     }
     const questions = cleanQuestions(b.questions);
-    if (!questions) return fail(res, 400, 'Aucune question valide');
+    if (!questions) return fail(res, 400, 'Aucune étape valide');
     if (games.size >= MAX_GAMES) return fail(res, 503, 'Trop de parties en cours');
     const dur = Math.min(300, Math.max(5, Number(b.dur) || 30)) * 1000;
     const title = String(b.title || '').trim().slice(0, 60) || 'Quiz en direct';
-    const g = { code: newCode(), token: rid(16), title, live: b.live !== false, questions, dur, phase: 'lobby', q: -1,
+    const g = { code: newCode(), token: rid(16), title, live: b.live !== false, questions, nq: questions.filter(x => x.t === 'q').length, dur, phase: 'lobby', q: -1, step: 0,
       startedAt: 0, players: new Map(), clients: new Set(), results: [], dirty: false, last: Date.now() };
     games.set(g.code, g);
     return json(res, 200, { code: g.code, token: g.token });
@@ -175,16 +216,16 @@ async function api(req, res, url) {
     if (g.players.size >= MAX_PLAYERS) return fail(res, 503, 'Partie complète');
     for (const p of g.players.values()) if (p.name.toLowerCase() === name.toLowerCase()) return fail(res, 409, 'Ce prénom est déjà pris, ajoutez une initiale');
     const id = rid(8);
-    g.players.set(id, { id, name, ans: null });
+    g.players.set(id, { id, name, a: {} });
     g.dirty = true;
     return json(res, 200, { id, name });
   }
   if (url.pathname === '/api/answer') {
     const p = g.players.get(String(b.id || ''));
     const c = Number(b.c);
-    if (!p || g.phase !== 'question' || p.ans != null) return json(res, 200, { ok: false });
+    if (!p || g.phase !== 'question' || p.a[g.q] != null) return json(res, 200, { ok: false });
     if (!Number.isInteger(c) || c < 0 || c >= g.questions[g.q].o.length) return fail(res, 400, 'Réponse invalide');
-    p.ans = c;
+    p.a[g.q] = c;
     g.dirty = true;
     return json(res, 200, { ok: true });
   }
@@ -246,8 +287,13 @@ textarea{min-height:280px;font-size:15px;line-height:1.45}
 .btn:after{content:"";width:9px;height:9px;border-top:2px solid var(--navy);border-right:2px solid var(--navy);transform:rotate(45deg)}
 @media (hover:hover){.btn:hover{box-shadow:0 0 38px rgba(127,220,255,.7)}}.btn:active{transform:translateY(1px)}
 .btn:disabled{opacity:.4;cursor:default;box-shadow:none}
-.btn.sec{background:transparent;color:#fff;border:1px solid var(--line);box-shadow:none}
-.btn.sec:after{border-color:#fff}
+.btn.ghost{background:rgba(2,24,46,.6);color:#fff;border:1px solid var(--halo);box-shadow:none}
+.btn.ghost:after{border-color:#fff}
+.btn.back:after{display:none}
+.btn.back:before{content:"";width:9px;height:9px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg)}
+body.host .btn.back{min-width:0}
+.sub{animation:rise .5s ease}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
 body.host .btn{width:auto;align-self:flex-start;min-width:280px}
 .err{border:1px solid #ff8f8f;background:rgba(120,20,30,.45);border-radius:3px;padding:12px;text-align:center}
 .qhead{display:flex;align-items:center;gap:18px}
@@ -295,6 +341,21 @@ body.host .answer .ans{font-size:36px}
 body.host .answer p{font-size:20px}
 body.host .foot{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
 .foot{display:grid;gap:14px}
+.scene{flex:1;display:flex;flex-direction:column;justify-content:center;gap:22px;padding:6vh 0}
+.scene h1{font-size:46px;text-shadow:0 0 40px rgba(127,220,255,.4)}
+body.host .scene h1{font-size:clamp(64px,8.5vw,128px)}
+.rule{width:140px;height:2px;background:linear-gradient(90deg,#f1fcff,var(--halo) 60%,rgba(127,220,255,0));box-shadow:0 0 16px rgba(127,220,255,.9)}
+body.host .rule{width:260px;height:3px}
+.sub{font-family:var(--disp);font-weight:600;font-size:22px;line-height:1.5;letter-spacing:.2em;text-transform:uppercase;color:var(--halo)}
+body.host .sub{font-size:clamp(26px,2.8vw,42px)}
+.info{display:grid;gap:18px}
+.body p,.body li{font-size:17px;line-height:1.5}
+body.host .body{padding:28px 32px}
+body.host .body p,body.host .body li{font-size:clamp(20px,2vw,30px)}
+.body p+p,.body p+ul,.body ul+p{margin-top:14px}
+.body ul{list-style:none}
+.body li{position:relative;padding-left:1.3em;margin-top:10px}
+.body li:before{content:"";position:absolute;left:0;top:.55em;width:.5em;height:.5em;border-radius:50%;border:1.5px solid var(--halo);box-shadow:0 0 8px rgba(127,220,255,.7)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1px solid var(--line);background:rgba(2,24,46,.6);border-radius:30px;padding:5px 14px;font-size:15px}
 .lobby{display:grid;gap:24px;align-items:center}
@@ -341,17 +402,23 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
 
   /* format texte : question, réponses (la bonne commence par *), puis "> explication" */
   function parseQuiz(t) {
-    return t.split(/\n\s*\n/).map(b => b.split('\n').map(l => l.trim()).filter(Boolean)).filter(l => l.length >= 3).map(l => {
+    return t.split(/\n\s*\n/).map(b => b.split('\n').map(l => l.trim()).filter(Boolean)).filter(l => l.length).map(l => {
+      let m = l[0].match(/^sc[eèé]ne\s*:\s*(.*)$/i);
+      if (m) return { t: 'scene', title: m[1], sub: l.slice(1).join('\n') };
+      m = l[0].match(/^contenu\s*:\s*(.*)$/i);
+      if (m) return { t: 'info', title: m[1], lines: l.slice(1) };
       let c = -1; const o = [], e = [];
       l.slice(1).forEach(x => {
         if (x[0] === '>') { e.push(x.slice(1).trim()); return; }
         if (x[0] === '*') { c = o.length; x = x.slice(1).trim(); }
         o.push(x);
       });
-      return { q: l[0], o, c, e: e.join(' ') };
-    }).filter(x => x.o.length >= 2 && x.o.length <= 4);
+      return { t: 'q', q: l[0], o, c, e: e.join(' ') };
+    }).filter(x => x.t === 'scene' ? x.title : x.t === 'info' ? (x.title || x.lines.length) : (x.o.length >= 2 && x.o.length <= 4));
   }
-  const quizText = () => DEFAULT_QUIZ.map(x => x.q + '\n' + x.o.map((o, i) => (i === x.c ? '*' : '') + o).join('\n') + (x.e ? '\n> ' + x.e : '')).join('\n\n');
+  const quizText = () => 'SCÈNE : Scène 1 · La réunion\nLe matin, au bureau\nAprès le déjeuner\n\n' + DEFAULT_QUIZ.slice(0, 2).map(x => x.q + '\n' + x.o.map((o, i) => (i === x.c ? '*' : '') + o).join('\n') + (x.e ? '\n> ' + x.e : '')).join('\n\n') +
+    '\n\nCONTENU : Focus sur les stéréotypes\nUn stéréotype est une croyance simplifiée que l’on applique à tout un groupe.\n- Il fait gagner du temps, mais il fausse le jugement\n- Tout le monde en a, souvent sans le savoir\n- Le repérer est la première étape pour s’en défaire\n\n' +
+    DEFAULT_QUIZ.slice(2).map(x => x.q + '\n' + x.o.map((o, i) => (i === x.c ? '*' : '') + o).join('\n') + (x.e ? '\n> ' + x.e : '')).join('\n\n');
 
   const header = () => '<header class="top">' + (HAS_LOGO ? '<img class="logo" src="/logo" alt="">' : '') + '<span class="evt">' + esc((S && S.title) || 'Quiz en direct') + '</span></header>';
   const errHTML = () => err ? '<div class="err">' + esc(err) + '</div>' : '';
@@ -375,15 +442,31 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
     return S.expl ? '<div class="answer"><div class="lbl">À retenir</div><p>' + esc(S.expl) + '</p></div>' : '';
   }
   const qhead = withRing => '<div class="qhead"><div><div class="kicker">Question ' + (S.q + 1) + ' / ' + S.total + '</div><div class="qtext">' + esc(S.question.q) + '</div></div>' + (withRing ? ring() : '') + '</div>';
+  const nextLabel = () => ({ sub: 'Indication suivante', q: 'Lancer la question', scene: 'Scène suivante', info: 'Afficher le contenu', end: 'Terminer' })[S.next] || 'Suivant';
+  function slide() {
+    const d = S.slide || {};
+    if (d.t === 'scene') return '<div class="scene"><h1>' + esc(d.title) + '</h1><div class="rule"></div>' + (d.sub ? '<div class="sub">' + esc(d.sub).replace(/\n/g, '<br>') + '</div>' : '') + '</div>';
+    let h = '', ul = false;
+    (d.lines || []).forEach(l => {
+      const b = /^[-•]\s*/.test(l);
+      if (b && !ul) { h += '<ul>'; ul = true; }
+      if (!b && ul) { h += '</ul>'; ul = false; }
+      h += b ? '<li>' + esc(l.replace(/^[-•]\s*/, '')) + '</li>' : '<p>' + esc(l) + '</p>';
+    });
+    if (ul) h += '</ul>';
+    return '<div class="info">' + (d.title ? '<h1>' + esc(d.title) + '</h1>' : '') + (h ? '<div class="card body">' + h + '</div>' : '') + '</div>';
+  }
   const plural = (n, w) => n + ' ' + w + (n > 1 ? 's' : '');
-  const set = (html, bind) => { app.innerHTML = html; if (bind) bind(); };
+  const set = (html, bind) => { app.innerHTML = html; if (bind) bind(); const bk = $('#bk'); if (bk) bk.onclick = () => act('prev'); };
+  const back = () => S && S.back ? '<button class="btn ghost back" id="bk">Retour</button>' : '';
 
   /* met à jour barres, pourcentages et compteurs sans tout redessiner */
   function patch() {
     if (!S) return;
     const c = S.counts, tot = c ? c.reduce((a, b) => a + b, 0) : 0;
     document.querySelectorAll('[data-bar]').forEach(el => {
-      const i = +el.dataset.bar, p = c && tot ? Math.round(c[i] / tot * 100) : 0;
+      const den = S.phase === 'question' ? Math.max(S.n || 0, tot) : tot;
+      const i = +el.dataset.bar, p = c && den ? Math.round(c[i] / den * 100) : 0;
       el.classList.toggle('on', !!c);
       el.style.width = (c ? p : 0) + '%';
       const t = document.querySelector('[data-pct="' + i + '"]');
@@ -415,7 +498,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
         '<div><label>Titre affiché</label><input id="ti" maxlength="60" value="Quiz en direct"></div>' +
         '<div><label>Durée par question (secondes)</label><input id="du" type="number" min="5" max="300" value="30"></div>' +
         '<label class="check"><input id="lv" type="checkbox" checked> Afficher les pourcentages en direct pendant la question (sinon, seulement à la révélation)</label>' +
-        '<div><label>Questions</label><div class="muted" style="margin-bottom:8px">Une ligne vide entre deux questions. La bonne réponse commence par *. Sans *, la question devient un sondage. Une ligne qui commence par &gt; est l’explication affichée avec la réponse.</div><textarea id="qs"></textarea></div>' +
+        '<div><label>Déroulé</label><div class="muted" style="margin-bottom:8px">Une ligne vide entre deux étapes, dans l’ordre où vous les lancerez.<br><b>Question :</b> la question, puis 2 à 4 réponses. La bonne commence par * (sans *, c’est un sondage). Une ligne qui commence par &gt; est l’explication.<br><b>Écran de scène :</b> « SCÈNE : nom de la scène », puis une indication de temps ou de lieu par ligne. Elles s’affichent l’une après l’autre, à votre commande.<br><b>Écran de contenu :</b> « CONTENU : titre », puis le texte. Une ligne qui commence par - devient une puce.</div><textarea id="qs"></textarea></div>' +
         '<button class="btn" id="cr">Créer la partie</button>',
         () => {
           $('#qs').value = quizText();
@@ -423,7 +506,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
             const keep = { qs: $('#qs').value, du: $('#du').value, ti: $('#ti').value, lv: $('#lv').checked };
             const back = () => { view = ''; render(); $('#qs').value = keep.qs; $('#du').value = keep.du; $('#ti').value = keep.ti; $('#lv').checked = keep.lv; };
             const questions = parseQuiz(keep.qs);
-            if (!questions.length) { err = 'Aucune question valide : il faut une question et 2 à 4 réponses.'; return back(); }
+            if (!questions.length) { err = 'Aucune étape valide. Vérifiez le format des questions, scènes et contenus.'; return back(); }
             try {
               const password = $('#pw').value;
               try { sessionStorage.setItem('qz_pw', password); } catch (e) {}
@@ -438,25 +521,29 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
       const url = location.origin + '/?c=' + S.code;
       return set(header() + '<div class="lobby"><div class="center"><div class="qr" id="qr"></div></div><div><div class="kicker">Scannez le QR code, ou allez sur</div><div class="url">' + esc(location.host) + '</div><div class="kicker" style="margin-top:18px">Code de la partie</div><div class="code">' + esc(S.code) + '</div></div></div>' +
         '<div class="card"><div class="meta" id="cnt"></div><div class="chips" id="names" style="margin-top:12px"></div></div>' +
-        '<div class="spacer"></div><button class="btn" id="go">Lancer le quiz · ' + plural(S.total, 'question') + '</button>',
+        '<div class="spacer"></div><button class="btn" id="go">Démarrer · ' + plural(S.steps || S.total, 'étape') + '</button>',
         () => {
           $('#go').onclick = () => act('start');
           try { new QRCode($('#qr'), { text: url, width: 240, height: 240 }); } catch (e) { $('#qr').remove(); }
         });
     }
+    if (S.phase === 'slide') {
+      return set(header() + slide() + '<div class="spacer"></div><div class="foot"><button class="btn" id="nx">' + nextLabel() + '</button>' + back() + (S.part ? '<div class="meta">Indication <b>' + S.part[0] + '</b> / ' + S.part[1] + '</div>' : '') + '</div>',
+        () => { $('#nx').onclick = () => act('next'); });
+    }
     if (S.phase === 'question') {
-      return set(header() + qhead(true) + tiles(S.question) + '<div class="spacer"></div><div class="foot"><button class="btn" id="rv">Révéler la réponse</button><div class="meta" id="ans"></div></div>',
+      return set(header() + qhead(true) + tiles(S.question) + '<div class="spacer"></div><div class="foot"><button class="btn" id="rv">Révéler la réponse</button>' + back() + '<div class="meta" id="ans"></div></div>',
         () => { $('#rv').onclick = () => act('reveal'); });
     }
     if (S.phase === 'reveal') {
       return set(header() + qhead(false) + tiles(S.question, { reveal: true, correct: S.correct }) + answerCard() + '<div class="spacer"></div>' +
-        '<div class="foot"><button class="btn" id="nx">' + (S.q >= S.total - 1 ? 'Terminer' : 'Question suivante') + '</button><div class="meta" id="ans"></div></div>',
+        '<div class="foot"><button class="btn" id="nx">' + nextLabel() + '</button>' + back() + '<div class="meta" id="ans"></div></div>',
         () => { $('#nx').onclick = () => act('next'); });
     }
     set(header() + '<h1>Merci à toutes et à tous</h1><div class="card"><div class="kicker">Synthèse</div>' +
       (S.recap || []).filter(Boolean).map((r, i) => '<div class="rrow"><span>' + (i + 1) + '. ' + esc(r.q) + '<div class="muted">' + plural(r.n, 'réponse') + '</div></span><b>' +
         (r.good == null ? 'Sondage' : (r.n ? Math.round(r.good / r.n * 100) : 0) + ' %') + '</b></div>').join('') + '<div class="muted" style="margin-top:10px">Pourcentage de bonnes réponses par question.</div></div>' +
-      '<div class="spacer"></div><button class="btn" id="rs">Rejouer avec les mêmes participants</button><button class="btn sec" id="nw">Nouvelle partie</button>',
+      '<div class="spacer"></div><div class="foot"><button class="btn" id="nw">Nouvelle partie</button><button class="btn ghost" id="rs">Rejouer avec les mêmes participants</button>' + back() + '</div>',
       () => {
         $('#rs').onclick = () => act('restart');
         $('#nw').onclick = () => { if (demo) return; if (es) es.close(); save(null); sess = null; S = null; err = ''; render(); };
@@ -491,6 +578,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
     if (S.phase === 'lobby') {
       return set(header() + '<div class="spacer"></div><div class="card center"><div class="wait"></div><h2>Bienvenue ' + esc(me.name) + '</h2><div class="muted" style="margin-top:8px">Le quiz va bientôt commencer. Gardez cette page ouverte.</div></div><div class="spacer"></div><div class="spacer"></div>');
     }
+    if (S.phase === 'slide') return set(header() + slide());
     if (S.phase === 'question') {
       let pick = null;
       const done = me.ans != null;
@@ -519,7 +607,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
 
   function render() {
     const me = S && S.me;
-    const key = [isHost, !!sess, S ? S.phase : '-', S ? S.q : '', me ? me.ans : '', err].join('|');
+    const key = [isHost, !!sess, S ? S.phase : '-', S ? S.i + ':' + S.q + ':' + (S.slide ? S.slide.sub : '') + ':' + S.back : '', me ? me.ans : '', err].join('|');
     if (key !== view) { view = key; isHost ? buildHost() : buildPlayer(); requestAnimationFrame(patch); }
     else patch();
   }
@@ -531,6 +619,8 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
     if (ph === 'lobby') { S.n = 6; S.names = ['Camille', 'Thomas', 'Inès', 'Julien', 'Sarah', 'Marc']; }
     if (ph === 'question') { S.dur = 30000; S.rem = 19000; if (isHost) S.counts = [5, 3, 29, 4]; else S.me = { name: 'Camille', ans: null }; }
     if (ph === 'reveal') { S.counts = [5, 3, 29, 4]; S.correct = Q.c; S.expl = Q.e; if (!isHost) S.me = { name: 'Camille', ans: 2 }; }
+    if (ph === 'scene') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'scene', title: 'Scène 1 · La réunion', sub: 'Le matin, au bureau' }; S.part = [1, 2]; S.back = true; }
+    if (ph === 'info') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'info', title: 'Focus sur les stéréotypes', lines: ['Un stéréotype est une croyance simplifiée que l’on applique à tout un groupe.', '- Il fait gagner du temps, mais il fausse le jugement', '- Tout le monde en a, souvent sans le savoir', '- Le repérer est la première étape pour s’en défaire'] }; }
     if (ph === 'end') S.recap = DEFAULT_QUIZ.map((x, i) => ({ q: x.q, n: 44 - i, good: x.c < 0 ? null : 30 - 4 * i }));
     deadline = Date.now() + (S.rem || 0);
   }
