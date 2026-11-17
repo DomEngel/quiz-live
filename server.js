@@ -66,7 +66,9 @@ function stateFor(g, cl) {
     q: g.questions.slice(0, g.q + 1).filter(x => x.t === 'q').length - 1 };
   const more = Q && g.phase === 'slide' && Q.t === 'scene' && g.step < Q.subs.length - 1;
   if (Q && g.phase === 'slide') s.slide = Q.t === 'scene' ? { t: 'scene', title: Q.title, sub: Q.subs[g.step] || '' } : { t: 'info', title: Q.title, lines: Q.lines };
+  const staff = cl.role === 'host' || cl.role === 'screen'; // animateur ou écran de projection
   if (cl.role === 'host') {
+    s.view = g.view;
     const N = g.questions[g.q + 1];
     s.next = more ? 'sub' : N ? N.t : 'end';
     s.back = g.phase === 'end' || (g.phase !== 'lobby' && (g.q > 0 || g.step > 0));
@@ -74,7 +76,7 @@ function stateFor(g, cl) {
   }
   const me = cl.role === 'player' ? g.players.get(cl.id) : null;
   if (me) s.me = { name: me.name, ans: me.a[g.q] };
-  if (g.phase === 'lobby' && cl.role === 'host') s.names = [...g.players.values()].slice(0, 200).map(p => p.name);
+  if (g.phase === 'lobby' && staff) s.names = [...g.players.values()].slice(0, 200).map(p => p.name);
   if (Q && (g.phase === 'question' || g.phase === 'reveal')) {
     s.question = { q: Q.q, o: Q.o };
     const c = counts(g);
@@ -83,12 +85,12 @@ function stateFor(g, cl) {
       s.rem = Math.max(0, g.startedAt + g.dur - Date.now());
       s.dur = g.dur;
       // en direct : l'animateur voit tout de suite, un joueur seulement après avoir répondu
-      if (g.live && (cl.role === 'host' || (me && me.a[g.q] != null))) s.counts = c;
+      if (g.live && (staff || (me && me.a[g.q] != null))) s.counts = c;
     } else {
       s.counts = c; s.correct = Q.c; s.expl = Q.e;
     }
   }
-  if (g.phase === 'end' && cl.role === 'host') s.recap = g.results;
+  if (g.phase === 'end' && staff) s.recap = g.results;
   return s;
 }
 function push(cl, g) {
@@ -170,15 +172,16 @@ const fail = (res, code, error) => json(res, code, { error });
 async function api(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/events') {
     const g = games.get(url.searchParams.get('code'));
-    const token = url.searchParams.get('token'), id = url.searchParams.get('id');
+    const token = url.searchParams.get('token'), id = url.searchParams.get('id'), view = url.searchParams.get('view');
     res.writeHead(200, {
       'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive', 'X-Accel-Buffering': 'no'
     });
     const isHost = g && token && token === g.token;
+    const isScreen = g && view && view === g.view;
     const isPlayer = g && id && g.players.has(id);
-    if (!isHost && !isPlayer) { res.write('event: gone\ndata: {}\n\n'); res.end(); return; }
-    const cl = { res, role: isHost ? 'host' : 'player', id };
+    if (!isHost && !isScreen && !isPlayer) { res.write('event: gone\ndata: {}\n\n'); res.end(); return; }
+    const cl = { res, role: isHost ? 'host' : isScreen ? 'screen' : 'player', id };
     g.clients.add(cl);
     g.last = Date.now();
     res.write('retry: 2000\n\n');
@@ -200,10 +203,10 @@ async function api(req, res, url) {
     if (games.size >= MAX_GAMES) return fail(res, 503, 'Trop de parties en cours');
     const dur = Math.min(300, Math.max(5, Number(b.dur) || 30)) * 1000;
     const title = String(b.title || '').trim().slice(0, 60) || 'Quiz en direct';
-    const g = { code: newCode(), token: rid(16), title, live: b.live !== false, questions, nq: questions.filter(x => x.t === 'q').length, dur, phase: 'lobby', q: -1, step: 0,
+    const g = { code: newCode(), token: rid(16), view: rid(12), title, live: b.live !== false, questions, nq: questions.filter(x => x.t === 'q').length, dur, phase: 'lobby', q: -1, step: 0,
       startedAt: 0, players: new Map(), clients: new Set(), results: [], dirty: false, last: Date.now() };
     games.set(g.code, g);
-    return json(res, 200, { code: g.code, token: g.token });
+    return json(res, 200, { code: g.code, token: g.token, view: g.view });
   }
   const g = games.get(String(b.code || ''));
   if (!g) return fail(res, 404, 'Partie introuvable');
@@ -356,6 +359,15 @@ body.host .body p,body.host .body li{font-size:clamp(20px,2vw,30px)}
 .body ul{list-style:none}
 .body li{position:relative;padding-left:1.3em;margin-top:10px}
 .body li:before{content:"";position:absolute;left:0;top:.55em;width:.5em;height:.5em;border-radius:50%;border:1.5px solid var(--halo);box-shadow:0 0 8px rgba(127,220,255,.7)}
+a.btn{text-decoration:none}
+.ctrl{display:none}
+body.host .ctrl{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}
+.ctrl p{margin:6px 0 14px}
+.remote{display:flex;gap:18px;align-items:center}
+.qr.small{padding:8px;flex:none}
+.screen .btn,.screen .ctrl,.screen .part{display:none!important}
+.fs{position:fixed;top:14px;right:14px;z-index:5;font:600 13px var(--disp);letter-spacing:.12em;text-transform:uppercase;color:#fff;background:rgba(2,24,46,.7);border:1px solid var(--line);border-radius:2px;padding:8px 14px;cursor:pointer;opacity:.55}
+.fs:hover{opacity:1}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1px solid var(--line);background:rgba(2,24,46,.6);border-radius:30px;padding:5px 14px;font-size:15px}
 .lobby{display:grid;gap:24px;align-items:center}
@@ -378,13 +390,23 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
   const app = $('#app');
   const params = new URLSearchParams(location.search);
   const demo = params.get('demo');
-  const isHost = demo ? demo.indexOf('host') === 0 : location.pathname.replace(/\/+$/, '') === '/host';
-  if (isHost) document.body.classList.add('host');
+  const route = location.pathname.replace(/\/+$/, '');
+  const isScreen = demo ? demo.indexOf('screen') === 0 : route === '/screen';
+  const isHost = isScreen || (demo ? demo.indexOf('host') === 0 : route === '/host');
+  // grand écran : mise en page "salle" ; sur un téléphone, l'animateur garde la mise en page mobile (télécommande)
+  if (isScreen || (isHost && innerWidth > 700)) document.body.classList.add('host');
+  if (isScreen) document.body.classList.add('screen');
   const KEY = isHost ? 'qz_host' : 'qz_player';
   let S = null, es = null, deadline = 0, err = '', view = '';
   let sess = null;
   if (!demo) { try { sess = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {} }
-  const save = v => { try { v ? localStorage.setItem(KEY, JSON.stringify(v)) : localStorage.removeItem(KEY); } catch (e) {} };
+  if (!demo && isScreen) sess = params.get('c') && params.get('k') ? { code: params.get('c'), view: params.get('k') } : null;
+  else if (!demo && isHost && params.get('c') && params.get('t')) { // lien "télécommande" scanné depuis l'ordinateur
+    sess = { code: params.get('c'), token: params.get('t') };
+    try { localStorage.setItem(KEY, JSON.stringify(sess)); } catch (e) {}
+    history.replaceState(null, '', '/host');
+  }
+  const save = v => { if (isScreen) return; try { v ? localStorage.setItem(KEY, JSON.stringify(v)) : localStorage.removeItem(KEY); } catch (e) {} };
 
   async function post(path, body) {
     const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -394,11 +416,11 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
   }
   function connect() {
     if (es) es.close();
-    es = new EventSource('/api/events?code=' + encodeURIComponent(sess.code) + (isHost ? '&token=' + sess.token : '&id=' + sess.id));
+    es = new EventSource('/api/events?code=' + encodeURIComponent(sess.code) + (isScreen ? '&view=' + sess.view : isHost ? '&token=' + sess.token : '&id=' + sess.id));
     es.addEventListener('state', e => { S = JSON.parse(e.data); deadline = Date.now() + (S.rem || 0); render(); });
-    es.addEventListener('gone', () => { es.close(); save(null); sess = null; S = null; err = 'Partie terminée ou introuvable.'; render(); });
+    es.addEventListener('gone', () => { es.close(); save(null); sess = null; S = null; err = isScreen ? 'Cette partie est terminée. Rouvrez l’écran de projection depuis la page animateur.' : 'Partie terminée ou introuvable.'; render(); });
   }
-  const act = a => { if (!demo) post('/api/host', { code: sess.code, token: sess.token, action: a }).catch(() => {}); };
+  const act = a => { if (!demo && !isScreen) post('/api/host', { code: sess.code, token: sess.token, action: a }).catch(() => {}); };
 
   /* format texte : question, réponses (la bonne commence par *), puis "> explication" */
   function parseQuiz(t) {
@@ -491,6 +513,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
 
   /* ---------- animateur ---------- */
   function buildHost() {
+    if (isScreen && !sess) return set(header() + '<div class="spacer"></div><div class="card center"><h2>Écran de projection</h2><div class="muted" style="margin-top:8px">' + esc(err || 'Ouvrez cet écran avec le bouton « Écran de projection » de la page animateur.') + '</div></div><div class="spacer"></div>');
     if (!sess) {
       let pw = ''; try { pw = sessionStorage.getItem('qz_pw') || ''; } catch (e) {}
       return set(header() + '<h1>Nouvelle partie</h1>' + errHTML() +
@@ -521,14 +544,18 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
       const url = location.origin + '/?c=' + S.code;
       return set(header() + '<div class="lobby"><div class="center"><div class="qr" id="qr"></div></div><div><div class="kicker">Scannez le QR code, ou allez sur</div><div class="url">' + esc(location.host) + '</div><div class="kicker" style="margin-top:18px">Code de la partie</div><div class="code">' + esc(S.code) + '</div></div></div>' +
         '<div class="card"><div class="meta" id="cnt"></div><div class="chips" id="names" style="margin-top:12px"></div></div>' +
+        (S.view ? '<div class="card ctrl"><div><div class="kicker">Projeter dans la salle</div><p class="muted">Ouvrez cet écran sur l’ordinateur relié au vidéoprojecteur : il affiche le quiz sans aucun bouton.</p>' +
+          '<a class="btn ghost" href="/screen?c=' + encodeURIComponent(S.code) + '&k=' + encodeURIComponent(S.view) + '" target="_blank" rel="noopener">Écran de projection</a></div>' +
+          '<div class="remote"><div class="qr small" id="rq"></div><div><div class="kicker">Piloter depuis mon téléphone</div><p class="muted">Scannez ce code avec votre téléphone : il devient la télécommande. Ne le montrez pas aux participants.</p></div></div></div>' : '') +
         '<div class="spacer"></div><button class="btn" id="go">Démarrer · ' + plural(S.steps || S.total, 'étape') + '</button>',
         () => {
           $('#go').onclick = () => act('start');
           try { new QRCode($('#qr'), { text: url, width: 240, height: 240 }); } catch (e) { $('#qr').remove(); }
+          if ($('#rq')) try { new QRCode($('#rq'), { text: location.origin + '/host?c=' + encodeURIComponent(S.code) + '&t=' + encodeURIComponent(sess.token), width: 150, height: 150 }); } catch (e) { $('#rq').remove(); }
         });
     }
     if (S.phase === 'slide') {
-      return set(header() + slide() + '<div class="spacer"></div><div class="foot"><button class="btn" id="nx">' + nextLabel() + '</button>' + back() + (S.part ? '<div class="meta">Indication <b>' + S.part[0] + '</b> / ' + S.part[1] + '</div>' : '') + '</div>',
+      return set(header() + slide() + '<div class="spacer"></div><div class="foot"><button class="btn" id="nx">' + nextLabel() + '</button>' + back() + (S.part ? '<div class="meta part">Indication <b>' + S.part[0] + '</b> / ' + S.part[1] + '</div>' : '') + '</div>',
         () => { $('#nx').onclick = () => act('next'); });
     }
     if (S.phase === 'question') {
@@ -614,6 +641,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
 
   if (demo) {
     const Q = DEFAULT_QUIZ[0], ph = demo.split('-')[1] || 'question';
+    if (isScreen) sess = { code: '4821', view: 'demo' };
     sess = { code: '4821', id: 'demo', token: 'demo' };
     S = { code: '4821', title: 'Quiz en direct', phase: ph, q: 0, total: DEFAULT_QUIZ.length, n: 48, question: { q: Q.q, o: Q.o }, answered: 41 };
     if (ph === 'lobby') { S.n = 6; S.names = ['Camille', 'Thomas', 'Inès', 'Julien', 'Sarah', 'Marc']; }
@@ -625,6 +653,13 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
     deadline = Date.now() + (S.rem || 0);
   }
   setInterval(tickTimer, 200);
+  if (isScreen) { // bouton plein écran, masqué une fois en plein écran
+    const fs = document.createElement('button');
+    fs.className = 'fs'; fs.textContent = 'Plein écran';
+    fs.onclick = () => { try { document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {} };
+    document.addEventListener('fullscreenchange', () => { fs.hidden = !!document.fullscreenElement; });
+    document.body.appendChild(fs);
+  }
   if (sess && !demo) connect();
   render();
 }
@@ -646,7 +681,7 @@ http.createServer((req, res) => {
   } else if (url.pathname === '/logo' && LOGO) {
     res.writeHead(200, { 'Content-Type': LOGO_TYPES[path.extname(LOGO)], 'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'" });
     fs.createReadStream(LOGO).pipe(res);
-  } else if (url.pathname === '/' || url.pathname === '/host' || url.pathname === '/host/') {
+  } else if (['/', '/host', '/host/', '/screen', '/screen/'].includes(url.pathname)) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(PAGE);
   } else {
