@@ -242,15 +242,138 @@ async function api(req, res, url) {
 
 /* ------------------------------ page (client) ------------------------------ */
 const DEFAULT_QUIZ = [
-  { q: 'Quelle planète est la plus proche du Soleil ?', o: ['Vénus', 'Mars', 'Mercure', 'La Terre'], c: 2,
-    e: 'Mercure orbite à environ 58 millions de kilomètres du Soleil et en fait le tour en 88 jours.' },
-  { q: 'En quelle année un être humain a-t-il marché sur la Lune pour la première fois ?', o: ['1961', '1969', '1972', '1981'], c: 1,
-    e: 'Mission Apollo 11, juillet 1969 : Neil Armstrong, puis Buzz Aldrin, posent le pied sur la Lune.' },
-  { q: 'Combien de temps la lumière du Soleil met-elle pour atteindre la Terre ?', o: ['8 secondes', '8 minutes', '8 heures', '8 jours'], c: 1,
-    e: 'Environ 8 minutes et 20 secondes pour parcourir 150 millions de kilomètres.' },
-  { q: 'Quel sujet aimeriez-vous approfondir aujourd’hui ?', o: ['L’innovation', 'Le travail en équipe', 'La sécurité', 'L’environnement'], c: -1,
-    e: '' }
+ {
+  "q": "How many people work at ArianeGroup?",
+  "o": [
+   "About 2,000",
+   "About 8,000",
+   "About 15,000",
+   "About 30,000"
+  ],
+  "c": 1,
+  "e": "About 8,000 people, in France and in Germany."
+ },
+ {
+  "q": "How many of them are based in Germany?",
+  "o": [
+   "About 300",
+   "About 1,200",
+   "About 4,000",
+   "About 6,000"
+  ],
+  "c": 1,
+  "e": "About 1,200 people, roughly 15 % of the group (85 % in France)."
+ },
+ {
+  "q": "How many main sites does ArianeGroup have in France and in Germany?",
+  "o": [
+   "13 in France, 1 in Germany",
+   "9 in France, 4 in Germany",
+   "6 in France, 6 in Germany",
+   "4 in France, 9 in Germany"
+  ],
+  "c": 1,
+  "e": "13 main sites: 8 in mainland France and 1 in French Guiana (the launch base), plus 4 in Germany."
+ },
+ {
+  "q": "Which side carries most of the defence activities?",
+  "o": [
+   "Mainly France",
+   "Mainly Germany",
+   "Half and half",
+   "Neither: ArianeGroup is civil only"
+  ],
+  "c": 0,
+  "e": "ArianeGroup builds civil and military launchers. Defence is mainly French; the German side works mainly on civil programmes. In France, even civil activities follow defence-level security rules."
+ },
+ {
+  "q": "What is the official language of ArianeGroup?",
+  "o": [
+   "French",
+   "German",
+   "English",
+   "French… until a German colleague walks in"
+  ],
+  "c": 2,
+  "e": "English. The only official language of the group… that nobody speaks as a native."
+ },
+ {
+  "q": "True or false: in France, a contract is only valid if you write « lu et approuvé » by hand.",
+  "o": [
+   "True",
+   "False"
+  ],
+  "c": 1,
+  "e": "False. The French Court of Cassation ruled as early as 1993 that this mention is a formality with no legal effect: the signature is enough. And yet everybody still asks for it."
+ },
+ {
+  "q": "When are French and German teams most likely to be at their desks at the same time?",
+  "o": [
+   "7:00 – 9:00",
+   "9:30 – 11:00",
+   "12:00 – 13:30",
+   "17:00 – 19:00"
+  ],
+  "c": 1,
+  "e": "In Germany, people often start between 6:30 and 8:00, have a 30-minute lunch from 11:00, and offices can be empty from 16:00 (part-time often means a free afternoon). In France, people start around 9:00-9:30, have a one-hour lunch around 12:30 and stay until 18:00-19:00. Your shared windows: about 9:30-11:00 and 13:30-16:00."
+ },
+ {
+  "q": "Who thinks the other side is hiding information?",
+  "o": [
+   "The French",
+   "The Germans",
+   "Both",
+   "Nobody"
+  ],
+  "c": 2,
+  "e": "Both. The Germans tend to protect their information; the French simply don’t think of sharing it. It is rarely retention: it is forgetting. The reflex to build: « Who on the other side needs this? »"
+ },
+ {
+  "q": "For you, good Franco-German cooperation is above all…",
+  "o": [
+   "Listening before deciding",
+   "Choosing our working language together",
+   "Sharing information as a reflex",
+   "Respecting each other’s rhythm"
+  ],
+  "c": -1,
+  "e": ""
+ },
+ {
+  "q": "What do you value most in your colleagues from across the border?",
+  "o": [
+   "Their expertise",
+   "Their reliability",
+   "Their agility",
+   "Their different way of seeing the same problem"
+  ],
+  "c": -1,
+  "e": ""
+ },
+ {
+  "q": "Tomorrow, with my mixed team, I will…",
+  "o": [
+   "Ask which language people prefer for our meetings",
+   "Ask myself « who on the other side needs this? » before sending",
+   "Schedule our meetings in our shared time window",
+   "Agree on how we decide, before deciding"
+  ],
+  "c": -1,
+  "e": ""
+ },
+ {
+  "q": "What makes Ariane 6 fly?",
+  "o": [
+   "The French lower stage",
+   "The German upper stage",
+   "A very long meeting",
+   "Both stages, letting go at the same second"
+  ],
+  "c": 3,
+  "e": ""
+ }
 ];
+const DEFAULT_TEXT = "How many people work at ArianeGroup?\nAbout 2,000\n*About 8,000\nAbout 15,000\nAbout 30,000\n> About 8,000 people, in France and in Germany.\n\nHow many of them are based in Germany?\nAbout 300\n*About 1,200\nAbout 4,000\nAbout 6,000\n> About 1,200 people, roughly 15 % of the group (85 % in France).\n\nHow many main sites does ArianeGroup have in France and in Germany?\n13 in France, 1 in Germany\n*9 in France, 4 in Germany\n6 in France, 6 in Germany\n4 in France, 9 in Germany\n> 13 main sites: 8 in mainland France and 1 in French Guiana (the launch base), plus 4 in Germany.\n\nWhich side carries most of the defence activities?\n*Mainly France\nMainly Germany\nHalf and half\nNeither: ArianeGroup is civil only\n> ArianeGroup builds civil and military launchers. Defence is mainly French; the German side works mainly on civil programmes. In France, even civil activities follow defence-level security rules.\n\nWhat is the official language of ArianeGroup?\nFrench\nGerman\n*English\nFrench… until a German colleague walks in\n> English. The only official language of the group… that nobody speaks as a native.\n\nSCÈNE : 2. IGNITION – The Interview\nRight here. Right now.\n\nCONTENU : Two roads to the same engineer\n- France: the Grandes Écoles. The name of the school and its network weigh on a whole career.\n- Germany: dual study (Duales Studium). The DHBW is the largest university in Baden-Württemberg: around 33,000 students and 9,000 partner companies.\n- Students alternate study and work in a company, and are paid by that company throughout.\nDifferent road. Same rocket science.\n\nCONTENU : English: who speaks it best?\n- EF English Proficiency Index 2025: Germany ranks #4 worldwide (very high level), France #38 (moderate level).\n- On the ground, the level varies on both sides: it is more a question of generation than of nationality.\nAnd at ArianeGroup, nobody is a native speaker of the official language.\n\nCONTENU : Who decides?\n- The French manager decides quickly, says what to do… and may change the decision. Seen from Germany: unstable.\n- The German manager asks « What do you propose? », consults… and then the decision is final. Seen from France: a boss who doesn’t decide.\nSame goal: a good decision. Two different timings.\n\nSCÈNE : 3. LIFTOFF – The First Day\nThree weeks later. 7:00 a.m.\n9:30 a.m.\n11:00 a.m.\n\nSCÈNE : 4. ASCENT – Lost in Translation\nAfter lunch\n\nTrue or false: in France, a contract is only valid if you write « lu et approuvé » by hand.\nTrue\n*False\n> False. The French Court of Cassation ruled as early as 1993 that this mention is a formality with no legal effect: the signature is enough. And yet everybody still asks for it.\n\nWhen are French and German teams most likely to be at their desks at the same time?\n7:00 – 9:00\n*9:30 – 11:00\n12:00 – 13:30\n17:00 – 19:00\n> In Germany, people often start between 6:30 and 8:00, have a 30-minute lunch from 11:00, and offices can be empty from 16:00 (part-time often means a free afternoon). In France, people start around 9:00-9:30, have a one-hour lunch around 12:30 and stay until 18:00-19:00. Your shared windows: about 9:30-11:00 and 13:30-16:00.\n\nWho thinks the other side is hiding information?\nThe French\nThe Germans\n*Both\nNobody\n> Both. The Germans tend to protect their information; the French simply don’t think of sharing it. It is rarely retention: it is forgetting. The reflex to build: « Who on the other side needs this? »\n\nSCÈNE : 5. MAX Q – The Big Meeting\nThe weekly team meeting\n\nSCÈNE : 6. ORBIT INSERTION – The Conclusion\n\nFor you, good Franco-German cooperation is above all…\nListening before deciding\nChoosing our working language together\nSharing information as a reflex\nRespecting each other’s rhythm\n\nWhat do you value most in your colleagues from across the border?\nTheir expertise\nTheir reliability\nTheir agility\nTheir different way of seeing the same problem\n\nTomorrow, with my mixed team, I will…\nAsk which language people prefer for our meetings\nAsk myself « who on the other side needs this? » before sending\nSchedule our meetings in our shared time window\nAgree on how we decide, before deciding\n\nWhat makes Ariane 6 fly?\nThe French lower stage\nThe German upper stage\nA very long meeting\n*Both stages, letting go at the same second\n\nCONTENU : Two Stages, One Rocket\nWe are not that different. And it’s exactly that bit that makes it fly.\nThank you! Danke! Merci!";
 
 const CSS = `
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -342,6 +465,14 @@ body.host .pct{font-size:46px;min-width:100px}
 body.host .answer .ans{font-size:36px}
 .answer p{margin-top:8px;color:rgba(255,255,255,.88);font-size:16px}
 body.host .answer p{font-size:20px}
+body.host.longx #app{padding-top:16px;gap:12px}
+body.host.longx .qtext{font-size:clamp(26px,3vw,40px)}
+body.host.longx .tile{min-height:64px;padding:8px 18px}
+body.host.longx .pct{font-size:34px}
+body.host.longx .answer{padding:12px 18px}
+body.host.longx .answer .ans{font-size:28px}
+body.host.longx .answer p{font-size:17px;margin-top:4px}
+body.host.longx .foot{display:none}
 body.host .foot{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
 .foot{display:grid;gap:14px}
 .scene{flex:1;display:flex;flex-direction:column;justify-content:center;gap:22px;padding:6vh 0}
@@ -383,7 +514,7 @@ body.host .lobby{grid-template-columns:auto 1fr;gap:48px}
 @media (prefers-reduced-motion:reduce){.wait{animation:none}.fill,.prg{transition:none}}
 `;
 
-function client(DEFAULT_QUIZ, HAS_LOGO) {
+function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   const L = ['A', 'B', 'C', 'D'], CIRC = 326.73;
   const $ = s => document.querySelector(s);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -438,9 +569,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
       return { t: 'q', q: l[0], o, c, e: e.join(' ') };
     }).filter(x => x.t === 'scene' ? x.title : x.t === 'info' ? (x.title || x.lines.length) : (x.o.length >= 2 && x.o.length <= 4));
   }
-  const quizText = () => 'SCÈNE : Scène 1 · La réunion\nLe matin, au bureau\nAprès le déjeuner\n\n' + DEFAULT_QUIZ.slice(0, 2).map(x => x.q + '\n' + x.o.map((o, i) => (i === x.c ? '*' : '') + o).join('\n') + (x.e ? '\n> ' + x.e : '')).join('\n\n') +
-    '\n\nCONTENU : Focus sur les stéréotypes\nUn stéréotype est une croyance simplifiée que l’on applique à tout un groupe.\n- Il fait gagner du temps, mais il fausse le jugement\n- Tout le monde en a, souvent sans le savoir\n- Le repérer est la première étape pour s’en défaire\n\n' +
-    DEFAULT_QUIZ.slice(2).map(x => x.q + '\n' + x.o.map((o, i) => (i === x.c ? '*' : '') + o).join('\n') + (x.e ? '\n> ' + x.e : '')).join('\n\n');
+  const quizText = () => DEFAULT_TEXT;
 
   const header = () => '<header class="top">' + (HAS_LOGO ? '<img class="logo" src="/logo" alt="">' : '') + '<span class="evt">' + esc((S && S.title) || 'Quiz en direct') + '</span></header>';
   const errHTML = () => err ? '<div class="err">' + esc(err) + '</div>' : '';
@@ -518,7 +647,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
       let pw = ''; try { pw = sessionStorage.getItem('qz_pw') || ''; } catch (e) {}
       return set(header() + '<h1>Nouvelle partie</h1>' + errHTML() +
         '<div><label>Mot de passe animateur</label><input id="pw" type="password" value="' + esc(pw) + '"></div>' +
-        '<div><label>Titre affiché</label><input id="ti" maxlength="60" value="Quiz en direct"></div>' +
+        '<div><label>Titre affiché</label><input id="ti" maxlength="60" value="Two Stages, One Rocket"></div>' +
         '<div><label>Durée par question (secondes)</label><input id="du" type="number" min="5" max="300" value="30"></div>' +
         '<label class="check"><input id="lv" type="checkbox" checked> Afficher les pourcentages en direct pendant la question (sinon, seulement à la révélation)</label>' +
         '<div><label>Déroulé</label><div class="muted" style="margin-bottom:8px">Une ligne vide entre deux étapes, dans l’ordre où vous les lancerez.<br><b>Question :</b> la question, puis 2 à 4 réponses. La bonne commence par * (sans *, c’est un sondage). Une ligne qui commence par &gt; est l’explication.<br><b>Écran de scène :</b> « SCÈNE : nom de la scène », puis une indication de temps ou de lieu par ligne. Elles s’affichent l’une après l’autre, à votre commande.<br><b>Écran de contenu :</b> « CONTENU : titre », puis le texte. Une ligne qui commence par - devient une puce.</div><textarea id="qs"></textarea></div>' +
@@ -634,6 +763,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO) {
 
   function render() {
     const me = S && S.me;
+    document.body.classList.toggle('longx', !!(S && S.phase === 'reveal' && S.expl && S.expl.length > 240));
     const key = [isHost, !!sess, S ? S.phase : '-', S ? S.i + ':' + S.q + ':' + (S.slide ? S.slide.sub : '') + ':' + S.back : '', me ? me.ans : '', err].join('|');
     if (key !== view) { view = key; isHost ? buildHost() : buildPlayer(); requestAnimationFrame(patch); }
     else patch();
@@ -670,7 +800,7 @@ const PAGE = '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">' +
   '<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">' +
   '<style>' + CSS + '</style></head><body><div class="sky"><div class="halo"></div></div><div id="app"></div>' +
   '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>' +
-  '<script>(' + client.toString() + ')(' + JSON.stringify(DEFAULT_QUIZ) + ',' + (LOGO ? 'true' : 'false') + ');</script></body></html>';
+  '<script>(' + client.toString() + ')(' + JSON.stringify(DEFAULT_QUIZ) + ',' + (LOGO ? 'true' : 'false') + ',' + JSON.stringify(DEFAULT_TEXT) + ');</script></body></html>';
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
