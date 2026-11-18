@@ -472,8 +472,8 @@ body.host.longx .pct{font-size:34px}
 body.host.longx .answer{padding:12px 18px}
 body.host.longx .answer .ans{font-size:28px}
 body.host.longx .answer p{font-size:17px;margin-top:4px}
-body.host.longx .foot{display:none}
 body.host .foot{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+body.host:not(.screen) .foot{position:sticky;bottom:0;z-index:5;padding:16px 0 18px;margin-bottom:-18px;background:linear-gradient(to top,rgba(0,13,26,.97) 70%,rgba(0,13,26,0))}
 .foot{display:grid;gap:14px}
 .scene{flex:1;display:flex;flex-direction:column;justify-content:center;gap:22px;padding:6vh 0}
 .scene h1{font-size:46px;text-shadow:0 0 40px rgba(127,220,255,.4)}
@@ -527,6 +527,14 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   // grand écran : mise en page "salle" ; sur un téléphone, l'animateur garde la mise en page mobile (télécommande)
   if (isScreen || (isHost && innerWidth > 700)) document.body.classList.add('host');
   if (isScreen) document.body.classList.add('screen');
+  if (!isScreen && !demo) { // raccourcis clavier de l'animateur : → ou Espace = suite, ← = retour
+    document.addEventListener('keydown', e => {
+      if (!isHost || e.altKey || e.ctrlKey || e.metaKey || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName || '')) return;
+      const go = id => { const b = document.getElementById(id); if (b && b.offsetParent) { e.preventDefault(); b.click(); return true; } return false; };
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go('nx') || go('rv') || go('go'); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') go('bk');
+    });
+  }
   const KEY = isHost ? 'qz_host' : 'qz_player';
   let S = null, es = null, deadline = 0, err = '', view = '';
   let sess = null;
