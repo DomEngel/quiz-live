@@ -207,22 +207,22 @@ async function api(req, res, url) {
     if (!questions) return fail(res, 400, 'Aucune étape valide');
     if (games.size >= MAX_GAMES) return fail(res, 503, 'Trop de parties en cours');
     const dur = Math.min(300, Math.max(5, Number(b.dur) || 30)) * 1000;
-    const title = String(b.title || '').trim().slice(0, 60) || 'Quiz en direct';
+    const title = String(b.title || '').trim().slice(0, 60) || 'Live quiz';
     const g = { code: newCode(), token: rid(16), view: rid(12), title, live: b.live !== false, questions, nq: questions.filter(x => x.t === 'q').length, dur, phase: 'lobby', q: -1, step: 0,
       startedAt: 0, players: new Map(), clients: new Set(), results: [], dirty: false, last: Date.now() };
     games.set(g.code, g);
     return json(res, 200, { code: g.code, token: g.token, view: g.view });
   }
   const g = games.get(String(b.code || ''));
-  if (!g) return fail(res, 404, 'Partie introuvable');
+  if (!g) return fail(res, 404, 'Game not found');
   g.last = Date.now();
 
   if (url.pathname === '/api/join') {
     const name = String(b.name || '').replace(/\s+/g, ' ').trim().slice(0, 20);
-    if (!name) return fail(res, 400, 'Prénom manquant');
-    if (g.phase === 'end') return fail(res, 409, 'Le quiz est terminé');
-    if (g.players.size >= MAX_PLAYERS) return fail(res, 503, 'Partie complète');
-    for (const p of g.players.values()) if (p.name.toLowerCase() === name.toLowerCase()) return fail(res, 409, 'Ce prénom est déjà pris, ajoutez une initiale');
+    if (!name) return fail(res, 400, 'First name missing');
+    if (g.phase === 'end') return fail(res, 409, 'The quiz is over');
+    if (g.players.size >= MAX_PLAYERS) return fail(res, 503, 'Game full');
+    for (const p of g.players.values()) if (p.name.toLowerCase() === name.toLowerCase()) return fail(res, 409, 'This name is already taken, add an initial');
     const id = rid(8);
     g.players.set(id, { id, name, a: {} });
     g.dirty = true;
@@ -232,7 +232,7 @@ async function api(req, res, url) {
     const p = g.players.get(String(b.id || ''));
     const c = Number(b.c);
     if (!p || g.phase !== 'question' || p.a[g.q] != null) return json(res, 200, { ok: false });
-    if (!Number.isInteger(c) || c < 0 || c >= g.questions[g.q].o.length) return fail(res, 400, 'Réponse invalide');
+    if (!Number.isInteger(c) || c < 0 || c >= g.questions[g.q].o.length) return fail(res, 400, 'Invalid answer');
     p.a[g.q] = c;
     g.dirty = true;
     return json(res, 200, { ok: true });
@@ -599,7 +599,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (es) es.close();
     es = new EventSource('/api/events?code=' + encodeURIComponent(sess.code) + (isScreen ? '&view=' + sess.view : isHost ? '&token=' + sess.token : '&id=' + sess.id));
     es.addEventListener('state', e => { S = JSON.parse(e.data); deadline = Date.now() + (S.rem || 0); render(); });
-    es.addEventListener('gone', () => { es.close(); save(null); sess = null; S = null; err = isScreen ? 'Cette partie est terminée. Rouvrez l’écran de projection depuis la page animateur.' : 'Partie terminée ou introuvable.'; render(); });
+    es.addEventListener('gone', () => { es.close(); save(null); sess = null; S = null; err = isScreen ? 'Cette partie est terminée. Rouvrez l’écran de projection depuis la page animateur.' : 'Game over or not found.'; render(); });
   }
   const act = a => { if (!demo && !isScreen) post('/api/host', { code: sess.code, token: sess.token, action: a }).catch(() => {}); };
 
@@ -621,7 +621,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   }
   const quizText = () => DEFAULT_TEXT;
 
-  const header = () => '<header class="top">' + (HAS_LOGO ? '<img class="logo" src="/logo" alt="">' : '') + '<span class="evt">' + esc((S && S.title) || 'Quiz en direct') + '</span></header>';
+  const header = () => '<header class="top">' + (HAS_LOGO ? '<img class="logo" src="/logo" alt="">' : '') + '<span class="evt">' + esc((S && S.title) || 'Live quiz') + '</span></header>';
   const errHTML = () => err ? '<div class="err">' + esc(err) + '</div>' : '';
   const ring = () => '<div class="ring" id="ring"><svg viewBox="0 0 120 120"><circle class="trk" cx="60" cy="60" r="52"/><circle class="prg" id="prg" cx="60" cy="60" r="52" transform="rotate(-90 60 60)"/></svg><div class="sec" id="sec"></div></div>';
   function tiles(Q, o) {
@@ -633,26 +633,26 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       if (o.reveal && o.correct >= 0 && o.correct !== i) cls.push('dim');
       const tag = o.click ? 'button' : 'div';
       return '<' + tag + ' class="' + cls.join(' ') + '"' + (o.click ? ' data-c="' + i + '"' : '') + '><span class="fill" data-bar="' + i + '"></span>' +
-        '<span class="ltr">' + L[i] + '</span><span class="txt">' + esc(t) + (o.picked === i ? '<span class="tag">Votre réponse</span>' : '') + '</span>' +
+        '<span class="ltr">' + L[i] + '</span><span class="txt">' + esc(t) + (o.picked === i ? '<span class="tag">Your answer</span>' : '') + '</span>' +
         '<span class="pct" data-pct="' + i + '"></span></' + tag + '>';
     }).join('') + '</div>';
   }
   function answerCard() {
     const Q = S.question;
-    if (S.correct >= 0) return '<div class="answer"><div class="lbl">La bonne réponse</div><div class="ans">' + L[S.correct] + ' · ' + esc(Q.o[S.correct]) + '</div>' + (S.expl ? '<p>' + esc(S.expl) + '</p>' : '') + '</div>';
-    return S.expl ? '<div class="answer"><div class="lbl">À retenir</div><p>' + esc(S.expl) + '</p></div>' : '';
+    if (S.correct >= 0) return '<div class="answer"><div class="lbl">Correct answer</div><div class="ans">' + L[S.correct] + ' · ' + esc(Q.o[S.correct]) + '</div>' + (S.expl ? '<p>' + esc(S.expl) + '</p>' : '') + '</div>';
+    return S.expl ? '<div class="answer"><div class="lbl">Key takeaway</div><p>' + esc(S.expl) + '</p></div>' : '';
   }
   const qhead = withRing => '<div class="qhead"><div><div class="kicker">Question ' + (S.q + 1) + ' / ' + S.total + '</div><div class="qtext">' + esc(S.question.q) + '</div></div>' + (withRing ? ring() : '') + '</div>';
   /* synthèse de fin : quiz = % de bonnes réponses ; sondage = réponses classées par pourcentage décroissant */
   const pc = (n, tot) => tot ? Math.round(n / tot * 100) : 0;
   function recapRows() {
     return (S.recap || []).filter(Boolean).map((r, i) => {
-      const head = '<span>' + (i + 1) + '. ' + esc(r.q) + '<div class="muted">' + plural(r.n, 'réponse') + (r.poll ? ' · sondage' : '') + '</div>';
+      const head = '<span>' + (i + 1) + '. ' + esc(r.q) + '<div class="muted">' + plural(r.n, 'answer') + (r.poll ? ' · poll' : '') + '</div>';
       if (r.poll && r.o) {
         const rows = r.o.map((x, j) => ({ t: x.t, n: x.n, j })).sort((a, b) => b.n - a.n || a.j - b.j);
         return '<div class="rrow poll"><span>' + head.slice(6) + '<div class="rpoll">' + rows.map(x => '<div class="rp"><i style="width:' + pc(x.n, r.n) + '%"></i><em>' + esc(x.t) + '</em><b>' + pc(x.n, r.n) + ' %</b></div>').join('') + '</div></span></div>';
       }
-      return '<div class="rrow">' + head + '</span><b>' + (r.good == null ? 'Sondage' : pc(r.good, r.n) + ' %') + '</b></div>';
+      return '<div class="rrow">' + head + '</span><b>' + (r.good == null ? 'Poll' : pc(r.good, r.n) + ' %') + '</b></div>';
     }).join('');
   }
   function downloadRecap() {
@@ -736,11 +736,11 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     });
     const cnt = $('#cnt');
     if (cnt) {
-      cnt.innerHTML = '<b>' + S.n + '</b> ' + (S.n > 1 ? 'participants connectés' : 'participant connecté');
-      $('#names').innerHTML = (S.names || []).map(n => '<span class="chip">' + esc(n) + '</span>').join('') || '<span class="muted">En attente des participants…</span>';
+      cnt.innerHTML = '<b>' + S.n + '</b> ' + (S.n > 1 ? 'participants connected' : 'participant connected');
+      $('#names').innerHTML = (S.names || []).map(n => '<span class="chip">' + esc(n) + '</span>').join('') || '<span class="muted">Waiting for participants…</span>';
     }
     const a = $('#ans');
-    if (a) a.innerHTML = isHost ? '<b>' + (S.answered || 0) + '</b> / ' + plural(S.n, 'participant') + ' ont répondu' : plural(S.answered || 0, 'réponse');
+    if (a) a.innerHTML = isHost ? '<b>' + (S.answered || 0) + '</b> / ' + plural(S.n, 'participant') + ' answered' : plural(S.answered || 0, 'answer');
     tickTimer();
   }
   function tickTimer() {
@@ -779,10 +779,10 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
           };
         });
     }
-    if (!S) return set(header() + '<div class="card center"><div class="wait"></div>Connexion…</div>');
+    if (!S) return set(header() + '<div class="card center"><div class="wait"></div>Connecting…</div>');
     if (S.phase === 'lobby') {
       const url = location.origin + '/?c=' + S.code;
-      return set(header() + '<div class="lobby"><div class="center"><div class="qr" id="qr"></div></div><div><div class="kicker">Scannez le QR code, ou allez sur</div><div class="url">' + esc(location.host) + '</div><div class="kicker" style="margin-top:18px">Code de la partie</div><div class="code">' + esc(S.code) + '</div></div></div>' +
+      return set(header() + '<div class="lobby"><div class="center"><div class="qr" id="qr"></div></div><div><div class="kicker">Scan the QR code, or go to</div><div class="url">' + esc(location.host) + '</div><div class="kicker" style="margin-top:18px">Game code</div><div class="code">' + esc(S.code) + '</div></div></div>' +
         '<div class="card"><div class="meta" id="cnt"></div><div class="chips" id="names" style="margin-top:12px"></div></div>' +
         (S.view ? '<div class="card ctrl"><div><div class="kicker">Projeter dans la salle</div><p class="muted">Ouvrez cet écran sur l’ordinateur relié au vidéoprojecteur : il affiche le quiz sans aucun bouton.</p>' +
           '<a class="btn ghost" href="/screen?c=' + encodeURIComponent(S.code) + '&k=' + encodeURIComponent(S.view) + '" target="_blank" rel="noopener">Écran de projection</a></div>' +
@@ -807,8 +807,8 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
         '<div class="foot"><button class="btn" id="nx">' + nextLabel() + '</button>' + back() + '<div class="meta" id="ans"></div></div>',
         () => { $('#nx').onclick = () => act('next'); });
     }
-    set(header() + '<h1>Merci à toutes et à tous</h1><div class="card recap"><div class="kicker">Synthèse</div>' + recapRows() +
-      '<div class="muted" style="margin-top:10px">Quiz : pourcentage de bonnes réponses. Sondages : répartition des réponses, de la plus choisie à la moins choisie.</div></div>' +
+    set(header() + '<h1>Thank you all</h1><div class="card recap"><div class="kicker">Summary</div>' + recapRows() +
+      '<div class="muted" style="margin-top:10px">Quiz: percentage of correct answers. Polls: share of each answer, from most to least chosen.</div></div>' +
       '<div class="spacer"></div><div class="foot endfoot"><button class="btn" id="nw">Nouvelle partie</button><button class="btn ghost" id="rs">Rejouer avec les mêmes participants</button>' + (isScreen ? '' : '<button class="btn ghost" id="dl">Télécharger (Excel)</button><button class="btn ghost" id="pr">Enregistrer en PDF</button>') + back() + '</div>',
       () => {
         $('#rs').onclick = () => act('restart');
@@ -822,10 +822,10 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (!sess) {
       const c = params.get('c') || '';
       let nm = ''; try { nm = localStorage.getItem('qz_name') || ''; } catch (e) {}
-      return set(header() + '<div class="spacer"></div><h1>Rejoindre<br>le quiz</h1>' + errHTML() +
-        '<div><label>Code de la partie</label><input class="c" id="cd" inputmode="numeric" maxlength="4" value="' + esc(c) + '"></div>' +
-        '<div><label>Votre prénom</label><input class="c" id="nm" maxlength="20" autocomplete="off" value="' + esc(nm) + '"></div>' +
-        '<button class="btn" id="jn">Rejoindre</button><div class="spacer"></div><div class="spacer"></div>',
+      return set(header() + '<div class="spacer"></div><h1>Join<br>the quiz</h1>' + errHTML() +
+        '<div><label>Game code</label><input class="c" id="cd" inputmode="numeric" maxlength="4" value="' + esc(c) + '"></div>' +
+        '<div><label>Your first name</label><input class="c" id="nm" maxlength="20" autocomplete="off" value="' + esc(nm) + '"></div>' +
+        '<button class="btn" id="jn">Join</button><div class="spacer"></div><div class="spacer"></div>',
         () => {
           const go = async () => {
             const code = $('#cd').value.trim(), name = $('#nm').value.trim();
@@ -840,18 +840,18 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
           $('#nm').onkeydown = e => { if (e.key === 'Enter') go(); };
         });
     }
-    if (!S) return set(header() + '<div class="spacer"></div><div class="card center"><div class="wait"></div>Connexion…</div><div class="spacer"></div>');
+    if (!S) return set(header() + '<div class="spacer"></div><div class="card center"><div class="wait"></div>Connecting…</div><div class="spacer"></div>');
     const me = S.me || { name: '', ans: null };
     if (S.phase === 'lobby') {
-      return set(header() + '<div class="spacer"></div><div class="card center"><div class="wait"></div><h2>Bienvenue ' + esc(me.name) + '</h2><div class="muted" style="margin-top:8px">Le quiz va bientôt commencer. Gardez cette page ouverte.</div></div><div class="spacer"></div><div class="spacer"></div>');
+      return set(header() + '<div class="spacer"></div><div class="card center"><div class="wait"></div><h2>Welcome ' + esc(me.name) + '</h2><div class="muted" style="margin-top:8px">The quiz will start soon. Keep this page open.</div></div><div class="spacer"></div><div class="spacer"></div>');
     }
     if (S.phase === 'slide') return set(header() + slide());
     if (S.phase === 'question') {
       let pick = null;
       const done = me.ans != null;
       return set(header() + qhead(true) + tiles(S.question, { click: !done, picked: me.ans }) +
-        (done ? '<div class="meta center">Réponse validée · <span id="ans"></span></div>'
-              : '<button class="btn" id="vd" disabled>Valider ma réponse</button><div class="muted center">Vous pouvez changer de choix tant que vous n’avez pas validé. Une réponse non validée n’est pas comptée.</div>'),
+        (done ? '<div class="meta center">Answer submitted · <span id="ans"></span></div>'
+              : '<button class="btn" id="vd" disabled>Submit my answer</button><div class="muted center">You can change your choice until you submit. An unsubmitted answer is not counted.</div>'),
         () => {
           const vd = $('#vd'); if (!vd) return;
           app.querySelectorAll('button[data-c]').forEach(b => b.onclick = () => {
@@ -869,7 +869,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (S.phase === 'reveal') {
       return set(header() + qhead(false) + tiles(S.question, { reveal: true, correct: S.correct, picked: me.ans }) + answerCard() + '<div class="meta center" id="ans"></div>');
     }
-    set(header() + '<div class="spacer"></div><div class="card center"><h2>Merci pour votre participation</h2><div class="muted" style="margin-top:8px">Le quiz est terminé.</div></div><div class="spacer"></div><div class="spacer"></div>');
+    set(header() + '<div class="spacer"></div><div class="card center"><h2>Thank you for taking part</h2><div class="muted" style="margin-top:8px">The quiz is over.</div></div><div class="spacer"></div><div class="spacer"></div>');
   }
 
   function render() {
@@ -884,7 +884,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     const Q = DEFAULT_QUIZ[0], ph = demo.split('-')[1] || 'question';
     if (isScreen) sess = { code: '4821', view: 'demo' };
     sess = { code: '4821', id: 'demo', token: 'demo' };
-    S = { code: '4821', title: 'Quiz en direct', phase: ph, q: 0, total: DEFAULT_QUIZ.length, n: 48, question: { q: Q.q, o: Q.o }, answered: 41 };
+    S = { code: '4821', title: 'Live quiz', phase: ph, q: 0, total: DEFAULT_QUIZ.length, n: 48, question: { q: Q.q, o: Q.o }, answered: 41 };
     if (ph === 'lobby') { S.n = 6; S.names = ['Camille', 'Thomas', 'Inès', 'Julien', 'Sarah', 'Marc']; }
     if (ph === 'question') { S.dur = 30000; S.rem = 19000; if (isHost) S.counts = [5, 3, 29, 4]; else S.me = { name: 'Camille', ans: null }; }
     if (ph === 'reveal') { S.counts = [5, 3, 29, 4]; S.correct = Q.c; S.expl = Q.e; if (!isHost) S.me = { name: 'Camille', ans: 2 }; }
@@ -896,7 +896,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   setInterval(tickTimer, 200);
   if (isScreen) { // bouton plein écran, masqué une fois en plein écran
     const fs = document.createElement('button');
-    fs.className = 'fs'; fs.textContent = 'Plein écran';
+    fs.className = 'fs'; fs.textContent = 'Full screen';
     fs.onclick = () => { try { document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {} };
     document.addEventListener('fullscreenchange', () => { fs.hidden = !!document.fullscreenElement; });
     document.body.appendChild(fs);
@@ -906,7 +906,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
 }
 
 const PAGE = '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">' +
-  '<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#000d1a"><title>Quiz en direct</title>' +
+  '<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#000d1a"><title>Live quiz</title>' +
   '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
   '<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">' +
   '<style>' + CSS + '</style></head><body><div class="sky"><div class="halo"></div></div><div id="app"></div>' +
