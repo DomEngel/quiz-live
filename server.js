@@ -79,6 +79,7 @@ function stateFor(g, cl) {
   if (g.phase === 'lobby' && staff) s.names = [...g.players.values()].slice(0, 200).map(p => p.name);
   if (Q && (g.phase === 'question' || g.phase === 'reveal')) {
     s.question = { q: Q.q, o: Q.o };
+    if (staff) s.poll = Q.c < 0;
     const c = counts(g);
     s.answered = c.reduce((a, b) => a + b, 0);
     if (g.phase === 'question') {
@@ -107,12 +108,12 @@ function beginQuestion(g) {
 function reveal(g) {
   if (g.phase !== 'question') return;
   const Q = g.questions[g.q], c = counts(g);
-  g.results[g.q] = { q: Q.q, n: c.reduce((a, b) => a + b, 0), good: Q.c >= 0 ? c[Q.c] : null };
-  g.phase = 'reveal';
+  g.results[g.q] = { q: Q.q, n: c.reduce((a, b) => a + b, 0), good: Q.c >= 0 ? c[Q.c] : null, poll: Q.c < 0, c: Q.c, o: Q.o.map((t, i) => ({ t, n: c[i] })) };
+  g.phase = 'reveal'; g.actAt = Date.now();
   broadcast(g);
 }
 function show(g, i, back) {
-  g.q = i; g.step = 0;
+  g.q = i; g.step = 0; g.actAt = Date.now();
   const it = g.questions[i];
   if (!it) { g.phase = 'end'; broadcast(g); }
   else if (it.t === 'q') {
@@ -124,6 +125,10 @@ function show(g, i, back) {
   }
 }
 function hostAction(g, action) {
+  // anti double-appui : un changement d'étape vient d'avoir lieu (action ou révélation automatique) -> on ignore un appui trop rapproché
+  const now = Date.now(), nav = action === 'reveal' || action === 'next' || action === 'prev';
+  if (nav && g.phase !== 'lobby' && now - (g.actAt || 0) < 800) return;
+  if (nav) g.actAt = now;
   if (action === 'start' && g.phase === 'lobby') show(g, 0);
   else if (action === 'reveal') reveal(g);
   else if (action === 'next' && (g.phase === 'reveal' || g.phase === 'slide')) {
@@ -474,12 +479,35 @@ body.host.longx .answer .ans{font-size:28px}
 body.host.longx .answer p{font-size:17px;margin-top:4px}
 body.host .foot{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
 body.host:not(.screen) .foot{position:sticky;bottom:0;z-index:5;padding:16px 0 18px;margin-bottom:-18px;background:linear-gradient(to top,rgba(0,13,26,.97) 70%,rgba(0,13,26,0))}
+body.host:not(.screen) .foot.endfoot{position:static;margin:0;padding:0;background:none}
 .foot{display:grid;gap:14px}
 .scene{flex:1;display:flex;flex-direction:column;justify-content:center;gap:22px;padding:6vh 0}
 .scene h1{font-size:46px;text-shadow:0 0 40px rgba(127,220,255,.4)}
 body.host .scene h1{font-size:clamp(64px,8.5vw,128px)}
 .rule{width:140px;height:2px;background:linear-gradient(90deg,#f1fcff,var(--halo) 60%,rgba(127,220,255,0));box-shadow:0 0 16px rgba(127,220,255,.9)}
 body.host .rule{width:260px;height:3px}
+.scene{gap:0}
+.scene h1.nm{white-space:nowrap;margin-top:8px}
+.scene .rule{margin-top:22px}
+.scene .sub{margin-top:22px}
+.ph span{white-space:nowrap}
+.ph{display:flex;align-items:center;gap:12px;font-family:var(--disp);font-weight:600;font-size:24px;line-height:1;letter-spacing:.18em;text-transform:uppercase;color:var(--halo);text-shadow:0 0 12px rgba(127,220,255,.4)}
+.ph .pi{flex:none;width:52px;height:52px;color:var(--halo);filter:drop-shadow(0 0 3px rgba(127,220,255,.55))}
+body.host .ph{gap:clamp(12px,1.35vw,26px);font-size:clamp(24px,3.125vw,60px)}
+body.host .ph .pi{width:clamp(52px,5vw,96px);height:clamp(52px,5vw,96px);filter:drop-shadow(0 0 6px rgba(127,220,255,.55))}
+body.host .scene h1.nm{margin-top:clamp(8px,1.15vw,22px)}
+body.host .scene .rule{margin-top:clamp(22px,1.8vw,34px)}
+body.host .scene .sub{margin-top:clamp(22px,1.6vw,30px)}
+.pi .d{stroke-dasharray:1;stroke-dashoffset:0}
+.scene.play .pi .d{animation:phdraw .8s cubic-bezier(.45,0,.2,1) both;animation-delay:calc(var(--i)*.09s)}
+.scene.play .pi .f{animation:phfade .5s ease .8s both}
+.scene.play .pi{animation:phglow 1.6s ease both}
+.scene.play .ph span{animation:phtxt .6s ease .15s both}
+@keyframes phdraw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes phfade{from{stroke-opacity:0}to{stroke-opacity:1}}
+@keyframes phglow{0%{opacity:.2}30%{opacity:1}}
+@keyframes phtxt{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.scene.play .pi *,.scene.play .pi,.scene.play .ph span{animation:none}}
 .sub{font-family:var(--disp);font-weight:600;font-size:22px;line-height:1.5;letter-spacing:.2em;text-transform:uppercase;color:var(--halo)}
 body.host .sub{font-size:clamp(26px,2.8vw,42px)}
 .info{display:grid;gap:18px}
@@ -509,6 +537,20 @@ body.host .lobby{grid-template-columns:auto 1fr;gap:48px}
 .rrow{display:flex;gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(127,220,255,.18)}
 .rrow span:first-child{flex:1;min-width:0}
 .rrow b{font-family:var(--disp);font-size:26px}
+.rpoll{display:grid;gap:6px;margin-top:10px}
+.rp{position:relative;display:flex;justify-content:space-between;gap:12px;padding:7px 12px;border:1px solid rgba(127,220,255,.25);border-radius:3px;overflow:hidden}
+.rp i{position:absolute;left:0;top:0;bottom:0;background:rgba(127,220,255,.22)}
+.rp em,.rp b{position:relative;font-style:normal;font-size:16px}
+.rp b{font-family:var(--disp)}
+@media print{
+  body{background:#fff!important;color:#0a1b33!important}
+  body *{color:#0a1b33!important;text-shadow:none!important;box-shadow:none!important}
+  .halo,.stars,canvas,.foot,.btn,.part{display:none!important}
+  img{filter:brightness(0)!important}
+  .card.recap{border:0!important;background:#fff!important;padding:0!important}
+  .rrow{break-inside:avoid;border-bottom:1px solid #cfd8e6!important}
+  .rp{border-color:#9db4d6!important}.rp i{background:#cfe3f7!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 .wait{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;border:2px solid rgba(127,220,255,.2);border-top-color:var(--halo);box-shadow:0 0 22px rgba(127,220,255,.4);animation:spin 1.6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.wait{animation:none}.fill,.prg{transition:none}}
@@ -601,10 +643,71 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     return S.expl ? '<div class="answer"><div class="lbl">À retenir</div><p>' + esc(S.expl) + '</p></div>' : '';
   }
   const qhead = withRing => '<div class="qhead"><div><div class="kicker">Question ' + (S.q + 1) + ' / ' + S.total + '</div><div class="qtext">' + esc(S.question.q) + '</div></div>' + (withRing ? ring() : '') + '</div>';
+  /* synthèse de fin : quiz = % de bonnes réponses ; sondage = réponses classées par pourcentage décroissant */
+  const pc = (n, tot) => tot ? Math.round(n / tot * 100) : 0;
+  function recapRows() {
+    return (S.recap || []).filter(Boolean).map((r, i) => {
+      const head = '<span>' + (i + 1) + '. ' + esc(r.q) + '<div class="muted">' + plural(r.n, 'réponse') + (r.poll ? ' · sondage' : '') + '</div>';
+      if (r.poll && r.o) {
+        const rows = r.o.map((x, j) => ({ t: x.t, n: x.n, j })).sort((a, b) => b.n - a.n || a.j - b.j);
+        return '<div class="rrow poll"><span>' + head.slice(6) + '<div class="rpoll">' + rows.map(x => '<div class="rp"><i style="width:' + pc(x.n, r.n) + '%"></i><em>' + esc(x.t) + '</em><b>' + pc(x.n, r.n) + ' %</b></div>').join('') + '</div></span></div>';
+      }
+      return '<div class="rrow">' + head + '</span><b>' + (r.good == null ? 'Sondage' : pc(r.good, r.n) + ' %') + '</b></div>';
+    }).join('');
+  }
+  function downloadRecap() {
+    const q = v => '"' + String(v).replace(/"/g, '""') + '"', L2 = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const lines = [['N°', 'Type', 'Question', 'Réponse', 'Nombre', 'Pourcentage', 'Bonne réponse'].map(q).join(';')];
+    (S.recap || []).filter(Boolean).forEach((r, i) => {
+      let rows = (r.o || []).map((x, j) => ({ t: x.t, n: x.n, j }));
+      if (r.poll) rows.sort((a, b) => b.n - a.n || a.j - b.j);
+      rows.forEach(x => lines.push([i + 1, r.poll ? 'Sondage' : 'Quiz', r.q, (L2[x.j] || '') + '. ' + x.t, x.n, pc(x.n, r.n) + ' %', !r.poll && x.j === r.c ? 'oui' : ''].map(q).join(';')));
+    });
+    const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'synthese-quiz-' + ((S && S.code) || '') + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  const PHASE_ICONS = {
+    "IGNITION": "<path stroke-width=\"2\" d=\"M24 4 C27.575 6 29.5 9 29.5 12 V31 H18.5 V12 C18.5 9 20.425 6 24 4 Z\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M18.5 15 H29.5 M24 24 V31\"/><path stroke-width=\"2\" d=\"M19.8 31 L19.1 34 H23.5 L22.8 31 M25.2 31 L24.5 34 H28.9 L28.2 31\"/><path stroke-width=\"2\" d=\"M19.4 36.5 C19.4 39.5 20.6 41.5 21.3 43 C22 41.5 23.2 39.5 23.2 36.5\"/><path stroke-width=\"2\" d=\"M24.8 36.5 C24.8 39.5 26 41.5 26.7 43 C27.4 41.5 28.6 39.5 28.6 36.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M21.3 37 V39.5 M26.7 37 V39.5\"/><path stroke-width=\"2\" d=\"M5 46 H43\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M15.5 41 V46 M32.5 41 V46\"/><path stroke-width=\"2\" d=\"M13 37 L10.5 35.5 M35 37 L37.5 35.5 M11 42 L8.5 42 M37 42 L39.5 42\"/>",
+    "LIFTOFF": "<path stroke-width=\"2\" d=\"M21 3 C23.6 5 25.0 8 25.0 11 V29 H17.0 V11 C17.0 8 18.4 5 21 3 Z\"/><path stroke-width=\"2\" d=\"M18.5 29 L17.8 32 H24.2 L23.5 29\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M17 14 H25\"/><path stroke-width=\"2\" d=\"M17.5 35 C16.5 39.5 13.5 42.5 9 44.5 M24.5 35 C25.5 39.5 28.5 42.5 33 44.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M21 35 V41\"/><path stroke-width=\"2\" d=\"M4 46 H31\"/><path stroke-width=\"2\" d=\"M38 8 V46\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M43 12 V46 M38 15 L43 21 L38 27 L43 33 L38 39 L43 45\"/><path stroke-width=\"2\" d=\"M38 17 H32\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M12 10 V16 M10 19 V24\"/>",
+    "ASCENT": "<path stroke-width=\"2\" stroke-dasharray=\"0 4\" d=\"M5 45 C8 38 13 32 19.5 27.5\"/><g transform=\"translate(33 15) rotate(48)\"><path stroke-width=\"2\" d=\"M0 -12 C2.3 -10 3.5 -7.5 3.5 -4.5 V8 H-3.5 V-4.5 C-3.5 -7.5 -2.3 -10 0 -12 Z\"/><path stroke-width=\"2\" d=\"M-2 8 L-2.7 10.6 H2.7 L2 8\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M-3.5 -1.5 H3.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M-1.6 13.5 Q0 18 1.6 13.5\"/></g><path stroke-width=\"1\" opacity=\".5\" d=\"M3 45 H21\"/><path stroke-width=\"2\" d=\"M11.3 33.2 L14.3 36.2\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M14.3 36.2 L18 40 H24\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M40 33 V39 M37 36 H43\"/>",
+    "MAX Q": "<path stroke-width=\"2\" d=\"M24 17 C26.275 19 27.5 22 27.5 25 V39 H20.5 V25 C20.5 22 21.725 19 24 17 Z\"/><path stroke-width=\"2\" d=\"M22.0 39 L21.3 42 H26.7 L26.0 39\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M20.5 27 H27.5\"/><path stroke-width=\"2\" d=\"M16 24 Q24 6 32 24\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M11.5 29 Q24 -4 36.5 29\"/><path stroke-width=\"1\" opacity=\".5\" stroke-dasharray=\"1 3\" d=\"M7 34 Q24 -14 41 34\"/>",
+    "ORBIT INSERTION": "<path stroke-width=\"2\" d=\"M4 32 A15 15 0 0 1 19 47\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M4 29 A18 18 0 0 1 22 47\"/><path stroke-width=\"2\" d=\"M2.53 14.53 L3.48 14.24 L4.42 13.99 L5.38 13.76 L6.34 13.57 L7.31 13.42 L8.28 13.30 L9.25 13.21 L10.22 13.15 L11.19 13.13 L12.16 13.14 L13.13 13.19 L14.10 13.27 L15.06 13.39 L16.01 13.53 L16.95 13.72 L17.89 13.93 L18.82 14.18 L19.74 14.46 L20.64 14.77 L21.53 15.12 L22.41 15.49 L23.28 15.90 L24.12 16.34 L24.95 16.81 L25.76 17.30 L26.56 17.83 L27.33 18.38 L28.08 18.97 L28.81 19.58 L29.51 20.21 L30.20 20.87 L30.85 21.56 L31.49 22.26 L32.09 23.00 L32.67 23.75 L33.22 24.52 L33.75 25.32 L34.24 26.13 L34.71 26.96 L35.14 27.81 L35.55 28.67 L35.92 29.55 L36.26 30.45 L36.57 31.35 L36.85 32.27 L37.09 33.20 L37.30 34.14 L37.48 35.09 L37.63 36.04 L37.74 37.00 L37.82 37.96 L37.86 38.93 L37.87 39.90 L37.84 40.88 L37.79 41.85 L37.69 42.82 L37.57 43.79 L37.41 44.75 L37.27 45.48\"/><circle stroke-width=\"1\" opacity=\".5\" cx=\"37.63\" cy=\"36.04\" r=\"3.6\"/><path stroke-width=\"2\" d=\"M37.63 36.04 h0.01\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M43.03 36.04 H44.43 M32.23 36.04 H30.83 M37.63 30.64 V29.24 M37.63 41.44 V42.84\"/><g transform=\"translate(16.44 13.61) rotate(-79.2)\"><path stroke-width=\"2\" d=\"M0 -6.5 C1.8 -5.2 2.7 -3.6 2.7 -1.8 V4.5 H-2.7 V-1.8 C-2.7 -3.6 -1.8 -5.2 0 -6.5 Z\"/><path stroke-width=\"2\" d=\"M-1.5 4.5 L-2 6.8 H2 L1.5 4.5\"/></g>",
+    "COUNTDOWN": "<path stroke-width=\"2\" d=\"M22 6 C24.6 8 26.0 11 26.0 14 V36 H18.0 V14 C18.0 11 19.4 8 22 6 Z\"/><path stroke-width=\"2\" d=\"M19.5 36 L18.8 39 H25.2 L24.5 36\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M18 18 H26\"/><path stroke-width=\"2\" d=\"M4 45 H44\"/><path stroke-width=\"2\" d=\"M36 4 V45\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M41 9 V45 M36 12 L41 18 L36 24 L41 30 L36 36 L41 42\"/><path stroke-width=\"2\" d=\"M36 15 H26\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M36 27 H26\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M17 45 V41 M27 45 V41\"/><path stroke-width=\"2\" d=\"M8 4 A4.5 4.5 0 1 1 3.5 8.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M8 8.5 V6.5 M8 8.5 H9.8\"/>"
+  };
+  let sceneSeen = '';
+  const phaseIcon = body => { let i = 0; return '<svg class="pi" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body.replace(/<(path|circle)\b([^>]*?)\/>/g, (m, t, a) => /stroke-dasharray/.test(a) ? '<' + t + ' class="f"' + a + '/>' : '<' + t + ' class="d" pathLength="1" style="--i:' + (i++) + '"' + a + '/>') + '</svg>'; };
+  const sceneHead = title => { // « 2. IGNITION – The Interview » → repère de phase + nom de scène
+    const m = /^\s*(\d+)\s*[.·:)]\s*(.+?)\s+[–—-]\s+(.+?)\s*$/.exec(String(title));
+    if (!m) return null;
+    const ph = m[2].toUpperCase(), ic = PHASE_ICONS[ph];
+    return { n: m[1], ph, name: m[3], ic };
+  };
+  function fitScene() { // le nom de scène reste sur une ligne : on réduit seulement s'il déborde
+    document.querySelectorAll('.scene .ph').forEach(h => { // même règle pour la ligne « N · PHASE » (ex. ORBIT INSERTION sur téléphone)
+      h.style.fontSize = '';
+      const w = h.scrollWidth, avail = h.clientWidth;
+      if (avail > 0 && w > avail) h.style.fontSize = Math.floor(parseFloat(getComputedStyle(h).fontSize) * avail / w * 0.98) + 'px';
+    });
+    document.querySelectorAll('.scene h1.nm').forEach(h => {
+      h.style.fontSize = '';
+      const avail = h.parentElement.clientWidth, w = h.scrollWidth;
+      if (avail > 0 && w > avail) h.style.fontSize = Math.floor(parseFloat(getComputedStyle(h).fontSize) * avail / w * 0.99) + 'px';
+    });
+  }
+  window.addEventListener('resize', fitScene);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitScene);
   const nextLabel = () => ({ sub: 'Indication suivante', q: 'Lancer la question', scene: 'Scène suivante', info: 'Afficher le contenu', end: 'Terminer' })[S.next] || 'Suivant';
   function slide() {
     const d = S.slide || {};
-    if (d.t === 'scene') return '<div class="scene"><h1>' + esc(d.title) + '</h1><div class="rule"></div>' + (d.sub ? '<div class="sub">' + esc(d.sub).replace(/\n/g, '<br>') + '</div>' : '') + '</div>';
+    if (d.t === 'scene') {
+      const sub = d.sub ? '<div class="sub">' + esc(d.sub).replace(/\n/g, '<br>') + '</div>' : '';
+      const hd = sceneHead(d.title);
+      if (!hd) return '<div class="scene"><h1>' + esc(d.title) + '</h1><div class="rule"></div>' + sub + '</div>';
+      const play = sceneSeen !== d.title; sceneSeen = d.title; // l’animation ne se joue qu’à l’apparition de la scène, pas à chaque indication
+      return '<div class="scene' + (play ? ' play' : '') + '"><p class="ph">' + (hd.ic ? phaseIcon(hd.ic) : '') + '<span>' + esc(hd.n) + ' · ' + esc(hd.ph) + '</span></p><h1 class="nm">' + esc(hd.name) + '</h1><div class="rule"></div>' + sub + '</div>';
+    }
     let h = '', ul = false;
     (d.lines || []).forEach(l => {
       const b = /^[-•]\s*/.test(l);
@@ -696,7 +799,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
         () => { $('#nx').onclick = () => act('next'); });
     }
     if (S.phase === 'question') {
-      return set(header() + qhead(true) + tiles(S.question) + '<div class="spacer"></div><div class="foot"><button class="btn" id="rv">Révéler la réponse</button>' + back() + '<div class="meta" id="ans"></div></div>',
+      return set(header() + qhead(true) + tiles(S.question) + '<div class="spacer"></div><div class="foot"><button class="btn" id="rv">' + (S.poll ? 'Voir les résultats' : 'Révéler la réponse') + '</button>' + back() + '<div class="meta" id="ans"></div></div>',
         () => { $('#rv').onclick = () => act('reveal'); });
     }
     if (S.phase === 'reveal') {
@@ -704,12 +807,12 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
         '<div class="foot"><button class="btn" id="nx">' + nextLabel() + '</button>' + back() + '<div class="meta" id="ans"></div></div>',
         () => { $('#nx').onclick = () => act('next'); });
     }
-    set(header() + '<h1>Merci à toutes et à tous</h1><div class="card"><div class="kicker">Synthèse</div>' +
-      (S.recap || []).filter(Boolean).map((r, i) => '<div class="rrow"><span>' + (i + 1) + '. ' + esc(r.q) + '<div class="muted">' + plural(r.n, 'réponse') + '</div></span><b>' +
-        (r.good == null ? 'Sondage' : (r.n ? Math.round(r.good / r.n * 100) : 0) + ' %') + '</b></div>').join('') + '<div class="muted" style="margin-top:10px">Pourcentage de bonnes réponses par question.</div></div>' +
-      '<div class="spacer"></div><div class="foot"><button class="btn" id="nw">Nouvelle partie</button><button class="btn ghost" id="rs">Rejouer avec les mêmes participants</button>' + back() + '</div>',
+    set(header() + '<h1>Merci à toutes et à tous</h1><div class="card recap"><div class="kicker">Synthèse</div>' + recapRows() +
+      '<div class="muted" style="margin-top:10px">Quiz : pourcentage de bonnes réponses. Sondages : répartition des réponses, de la plus choisie à la moins choisie.</div></div>' +
+      '<div class="spacer"></div><div class="foot endfoot"><button class="btn" id="nw">Nouvelle partie</button><button class="btn ghost" id="rs">Rejouer avec les mêmes participants</button>' + (isScreen ? '' : '<button class="btn ghost" id="dl">Télécharger (Excel)</button><button class="btn ghost" id="pr">Enregistrer en PDF</button>') + back() + '</div>',
       () => {
         $('#rs').onclick = () => act('restart');
+        if ($('#dl')) { $('#dl').onclick = downloadRecap; $('#pr').onclick = () => window.print(); }
         $('#nw').onclick = () => { if (demo) return; if (es) es.close(); save(null); sess = null; S = null; err = ''; render(); };
       });
   }
@@ -773,7 +876,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     const me = S && S.me;
     document.body.classList.toggle('longx', !!(S && S.phase === 'reveal' && S.expl && S.expl.length > 240));
     const key = [isHost, !!sess, S ? S.phase : '-', S ? S.i + ':' + S.q + ':' + (S.slide ? S.slide.sub : '') + ':' + S.back : '', me ? me.ans : '', err].join('|');
-    if (key !== view) { view = key; isHost ? buildHost() : buildPlayer(); requestAnimationFrame(patch); }
+    if (key !== view) { view = key; if (!(S && S.phase === 'slide' && S.slide && S.slide.t === 'scene')) sceneSeen = ''; isHost ? buildHost() : buildPlayer(); requestAnimationFrame(() => { fitScene(); patch(); }); }
     else patch();
   }
 
@@ -785,9 +888,9 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (ph === 'lobby') { S.n = 6; S.names = ['Camille', 'Thomas', 'Inès', 'Julien', 'Sarah', 'Marc']; }
     if (ph === 'question') { S.dur = 30000; S.rem = 19000; if (isHost) S.counts = [5, 3, 29, 4]; else S.me = { name: 'Camille', ans: null }; }
     if (ph === 'reveal') { S.counts = [5, 3, 29, 4]; S.correct = Q.c; S.expl = Q.e; if (!isHost) S.me = { name: 'Camille', ans: 2 }; }
-    if (ph === 'scene') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'scene', title: 'Scène 1 · La réunion', sub: 'Le matin, au bureau' }; S.part = [1, 2]; S.back = true; }
+    if (ph === 'scene') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'scene', title: '4. ASCENT – Lost in Translation', sub: 'After lunch' }; S.part = [1, 2]; S.back = true; }
     if (ph === 'info') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'info', title: 'Focus sur les stéréotypes', lines: ['Un stéréotype est une croyance simplifiée que l’on applique à tout un groupe.', '- Il fait gagner du temps, mais il fausse le jugement', '- Tout le monde en a, souvent sans le savoir', '- Le repérer est la première étape pour s’en défaire'] }; }
-    if (ph === 'end') S.recap = DEFAULT_QUIZ.map((x, i) => ({ q: x.q, n: 44 - i, good: x.c < 0 ? null : 30 - 4 * i }));
+    if (ph === 'end') S.recap = DEFAULT_QUIZ.map((x, i) => ({ q: x.q, n: 44 - i, good: x.c < 0 ? null : 30 - 4 * i, poll: x.c < 0, c: x.c, o: x.o.map((t, j) => ({ t, n: [9, 21, 6, 8][j] || 1 })) }));
     deadline = Date.now() + (S.rem || 0);
   }
   setInterval(tickTimer, 200);
