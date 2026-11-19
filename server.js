@@ -492,22 +492,43 @@ body.host .rule{width:260px;height:3px}
 .scene .sub{margin-top:22px}
 .ph span{white-space:nowrap}
 .ph{display:flex;align-items:center;gap:12px;font-family:var(--disp);font-weight:600;font-size:24px;line-height:1;letter-spacing:.18em;text-transform:uppercase;color:var(--halo);text-shadow:0 0 12px rgba(127,220,255,.4)}
-.ph .pi{flex:none;width:52px;height:52px;color:var(--halo);filter:drop-shadow(0 0 3px rgba(127,220,255,.55))}
+.ph .pi{flex:none;width:52px;height:52px;color:var(--halo);--g:3px;filter:drop-shadow(0 0 var(--g) rgba(127,220,255,.55))}
 body.host .ph{gap:clamp(12px,1.35vw,26px);font-size:clamp(24px,3.125vw,60px)}
-body.host .ph .pi{width:clamp(52px,5vw,96px);height:clamp(52px,5vw,96px);filter:drop-shadow(0 0 6px rgba(127,220,255,.55))}
+body.host .ph .pi{width:clamp(52px,5vw,96px);height:clamp(52px,5vw,96px);--g:6px;filter:drop-shadow(0 0 var(--g) rgba(127,220,255,.55))}
 body.host .scene h1.nm{margin-top:clamp(8px,1.15vw,22px)}
 body.host .scene .rule{margin-top:clamp(22px,1.8vw,34px)}
 body.host .scene .sub{margin-top:clamp(22px,1.6vw,30px)}
-.pi .d{stroke-dasharray:1;stroke-dashoffset:0}
-.scene.play .pi .d{animation:phdraw .8s cubic-bezier(.45,0,.2,1) both;animation-delay:calc(var(--i)*.09s)}
-.scene.play .pi .f{animation:phfade .5s ease .8s both}
-.scene.play .pi{animation:phglow 1.6s ease both}
 .scene.play .ph span{animation:phtxt .6s ease .15s both}
-@keyframes phdraw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
-@keyframes phfade{from{stroke-opacity:0}to{stroke-opacity:1}}
-@keyframes phglow{0%{opacity:.2}30%{opacity:1}}
 @keyframes phtxt{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.scene.play .pi *,.scene.play .pi,.scene.play .ph span{animation:none}}
+@keyframes phpeak{0%{filter:drop-shadow(0 0 0 rgba(127,220,255,0))}35%{filter:drop-shadow(0 0 calc(var(--g)*3) rgba(160,235,255,.95))}100%{filter:drop-shadow(0 0 var(--g) rgba(127,220,255,.55))}}
+.pi .ig-fl{transform-box:view-box;transform-origin:24px 36.5px}
+.pi .ig-sp{transform-box:view-box;transform-origin:24px 40px}
+.pi .lo-pl{transform-box:view-box;transform-origin:21px 35px}
+.pi .mq-a1,.pi .mq-a2,.pi .mq-a3{transform-box:view-box;transform-origin:24px 30px}
+.pi .ob-mk{transform-box:view-box;transform-origin:37.63px 36.04px}
+@media (prefers-reduced-motion:no-preference){
+.scene.play .k-ignition{animation:phpeak 2.2s ease-out both}
+.scene.play .ig-fl{animation:igfl 2.2s ease-out both}
+.scene.play .ig-sp{animation:igsp 1.6s ease-out .1s both}
+.scene.play .lo-mv{animation:lomv 2.1s cubic-bezier(.55,0,.25,1) .25s both}
+.scene.play .lo-pl{animation:lopl 2.1s ease-out .25s both}
+.scene.play .lo-st{animation:lost 1.5s ease-out .7s both}
+.scene.play .k-maxq{animation:phpeak 2s ease-out .3s both}
+.scene.play .mq-rk{animation:mqrk 1.5s linear .3s both}
+.scene.play .mq-a1{animation:mqa 1.1s ease-out .3s both}
+.scene.play .mq-a2{animation:mqa 1.1s ease-out .65s both}
+.scene.play .mq-a3{animation:mqa 1.1s ease-out 1s both}
+.scene.play .ob-mk.hit{animation:obmk .8s ease-out}
+.scene.play .pi[data-fly] .fl-rk{opacity:0}
+}
+@keyframes igfl{0%{transform:scale(.5,0)}16%{transform:scale(1.12,1.4)}32%{transform:scale(.92,.8)}48%{transform:scale(1.08,1.3)}64%{transform:scale(.96,.88)}82%{transform:scale(1.04,1.12)}100%{transform:none}}
+@keyframes igsp{0%{transform:scale(.2);opacity:0}35%{opacity:1}100%{transform:none;opacity:1}}
+@keyframes lomv{0%{transform:translateY(13px)}100%{transform:none}}
+@keyframes lopl{0%{transform:scaleY(.05)}35%{transform:scaleY(.7)}100%{transform:none}}
+@keyframes lost{0%{opacity:0;transform:translateY(-9px)}30%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes mqrk{0%{transform:none}8%{transform:translate(-.45px,.2px)}16%{transform:translate(.45px,-.25px)}24%{transform:translate(-.5px,.25px)}32%{transform:translate(.5px,-.2px)}40%{transform:translate(-.4px,.3px)}48%{transform:translate(.4px,-.3px)}58%{transform:translate(-.3px,.2px)}68%{transform:translate(.25px,-.2px)}80%{transform:translate(-.12px,.1px)}100%{transform:none}}
+@keyframes mqa{0%{transform:scale(.45);opacity:0}45%{transform:scale(1.1);opacity:1}100%{transform:none;opacity:1}}
+@keyframes obmk{0%{transform:none}45%{transform:scale(1.8)}100%{transform:none}}
 .sub{font-family:var(--disp);font-weight:600;font-size:22px;line-height:1.5;letter-spacing:.2em;text-transform:uppercase;color:var(--halo)}
 body.host .sub{font-size:clamp(26px,2.8vw,42px)}
 .info{display:grid;gap:18px}
@@ -669,15 +690,58 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   }
 
   const PHASE_ICONS = {
-    "IGNITION": "<path stroke-width=\"2\" d=\"M24 4 C27.575 6 29.5 9 29.5 12 V31 H18.5 V12 C18.5 9 20.425 6 24 4 Z\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M18.5 15 H29.5 M24 24 V31\"/><path stroke-width=\"2\" d=\"M19.8 31 L19.1 34 H23.5 L22.8 31 M25.2 31 L24.5 34 H28.9 L28.2 31\"/><path stroke-width=\"2\" d=\"M19.4 36.5 C19.4 39.5 20.6 41.5 21.3 43 C22 41.5 23.2 39.5 23.2 36.5\"/><path stroke-width=\"2\" d=\"M24.8 36.5 C24.8 39.5 26 41.5 26.7 43 C27.4 41.5 28.6 39.5 28.6 36.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M21.3 37 V39.5 M26.7 37 V39.5\"/><path stroke-width=\"2\" d=\"M5 46 H43\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M15.5 41 V46 M32.5 41 V46\"/><path stroke-width=\"2\" d=\"M13 37 L10.5 35.5 M35 37 L37.5 35.5 M11 42 L8.5 42 M37 42 L39.5 42\"/>",
-    "LIFTOFF": "<path stroke-width=\"2\" d=\"M21 3 C23.6 5 25.0 8 25.0 11 V29 H17.0 V11 C17.0 8 18.4 5 21 3 Z\"/><path stroke-width=\"2\" d=\"M18.5 29 L17.8 32 H24.2 L23.5 29\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M17 14 H25\"/><path stroke-width=\"2\" d=\"M17.5 35 C16.5 39.5 13.5 42.5 9 44.5 M24.5 35 C25.5 39.5 28.5 42.5 33 44.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M21 35 V41\"/><path stroke-width=\"2\" d=\"M4 46 H31\"/><path stroke-width=\"2\" d=\"M38 8 V46\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M43 12 V46 M38 15 L43 21 L38 27 L43 33 L38 39 L43 45\"/><path stroke-width=\"2\" d=\"M38 17 H32\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M12 10 V16 M10 19 V24\"/>",
-    "ASCENT": "<path stroke-width=\"2\" stroke-dasharray=\"0 4\" d=\"M5 45 C8 38 13 32 19.5 27.5\"/><g transform=\"translate(33 15) rotate(48)\"><path stroke-width=\"2\" d=\"M0 -12 C2.3 -10 3.5 -7.5 3.5 -4.5 V8 H-3.5 V-4.5 C-3.5 -7.5 -2.3 -10 0 -12 Z\"/><path stroke-width=\"2\" d=\"M-2 8 L-2.7 10.6 H2.7 L2 8\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M-3.5 -1.5 H3.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M-1.6 13.5 Q0 18 1.6 13.5\"/></g><path stroke-width=\"1\" opacity=\".5\" d=\"M3 45 H21\"/><path stroke-width=\"2\" d=\"M11.3 33.2 L14.3 36.2\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M14.3 36.2 L18 40 H24\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M40 33 V39 M37 36 H43\"/>",
-    "MAX Q": "<path stroke-width=\"2\" d=\"M24 17 C26.275 19 27.5 22 27.5 25 V39 H20.5 V25 C20.5 22 21.725 19 24 17 Z\"/><path stroke-width=\"2\" d=\"M22.0 39 L21.3 42 H26.7 L26.0 39\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M20.5 27 H27.5\"/><path stroke-width=\"2\" d=\"M16 24 Q24 6 32 24\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M11.5 29 Q24 -4 36.5 29\"/><path stroke-width=\"1\" opacity=\".5\" stroke-dasharray=\"1 3\" d=\"M7 34 Q24 -14 41 34\"/>",
-    "ORBIT INSERTION": "<path stroke-width=\"2\" d=\"M4 32 A15 15 0 0 1 19 47\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M4 29 A18 18 0 0 1 22 47\"/><path stroke-width=\"2\" d=\"M2.53 14.53 L3.48 14.24 L4.42 13.99 L5.38 13.76 L6.34 13.57 L7.31 13.42 L8.28 13.30 L9.25 13.21 L10.22 13.15 L11.19 13.13 L12.16 13.14 L13.13 13.19 L14.10 13.27 L15.06 13.39 L16.01 13.53 L16.95 13.72 L17.89 13.93 L18.82 14.18 L19.74 14.46 L20.64 14.77 L21.53 15.12 L22.41 15.49 L23.28 15.90 L24.12 16.34 L24.95 16.81 L25.76 17.30 L26.56 17.83 L27.33 18.38 L28.08 18.97 L28.81 19.58 L29.51 20.21 L30.20 20.87 L30.85 21.56 L31.49 22.26 L32.09 23.00 L32.67 23.75 L33.22 24.52 L33.75 25.32 L34.24 26.13 L34.71 26.96 L35.14 27.81 L35.55 28.67 L35.92 29.55 L36.26 30.45 L36.57 31.35 L36.85 32.27 L37.09 33.20 L37.30 34.14 L37.48 35.09 L37.63 36.04 L37.74 37.00 L37.82 37.96 L37.86 38.93 L37.87 39.90 L37.84 40.88 L37.79 41.85 L37.69 42.82 L37.57 43.79 L37.41 44.75 L37.27 45.48\"/><circle stroke-width=\"1\" opacity=\".5\" cx=\"37.63\" cy=\"36.04\" r=\"3.6\"/><path stroke-width=\"2\" d=\"M37.63 36.04 h0.01\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M43.03 36.04 H44.43 M32.23 36.04 H30.83 M37.63 30.64 V29.24 M37.63 41.44 V42.84\"/><g transform=\"translate(16.44 13.61) rotate(-79.2)\"><path stroke-width=\"2\" d=\"M0 -6.5 C1.8 -5.2 2.7 -3.6 2.7 -1.8 V4.5 H-2.7 V-1.8 C-2.7 -3.6 -1.8 -5.2 0 -6.5 Z\"/><path stroke-width=\"2\" d=\"M-1.5 4.5 L-2 6.8 H2 L1.5 4.5\"/></g>",
-    "COUNTDOWN": "<path stroke-width=\"2\" d=\"M22 6 C24.6 8 26.0 11 26.0 14 V36 H18.0 V14 C18.0 11 19.4 8 22 6 Z\"/><path stroke-width=\"2\" d=\"M19.5 36 L18.8 39 H25.2 L24.5 36\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M18 18 H26\"/><path stroke-width=\"2\" d=\"M4 45 H44\"/><path stroke-width=\"2\" d=\"M36 4 V45\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M41 9 V45 M36 12 L41 18 L36 24 L41 30 L36 36 L41 42\"/><path stroke-width=\"2\" d=\"M36 15 H26\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M36 27 H26\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M17 45 V41 M27 45 V41\"/><path stroke-width=\"2\" d=\"M8 4 A4.5 4.5 0 1 1 3.5 8.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M8 8.5 V6.5 M8 8.5 H9.8\"/>"
+    "IGNITION": "<svg class=\"pi k-ignition\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path stroke-width=\"2\" d=\"M24 4 C27.575 6 29.5 9 29.5 12 V31 H18.5 V12 C18.5 9 20.425 6 24 4 Z\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M18.5 15 H29.5 M24 24 V31\"/><path stroke-width=\"2\" d=\"M19.8 31 L19.1 34 H23.5 L22.8 31 M25.2 31 L24.5 34 H28.9 L28.2 31\"/><g class=\"ig-fl\"><path stroke-width=\"2\" d=\"M19.4 36.5 C19.4 39.5 20.6 41.5 21.3 43 C22 41.5 23.2 39.5 23.2 36.5\"/><path stroke-width=\"2\" d=\"M24.8 36.5 C24.8 39.5 26 41.5 26.7 43 C27.4 41.5 28.6 39.5 28.6 36.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M21.3 37 V39.5 M26.7 37 V39.5\"/></g><path stroke-width=\"2\" d=\"M5 46 H43\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M15.5 41 V46 M32.5 41 V46\"/><g class=\"ig-sp\"><path stroke-width=\"2\" d=\"M13 37 L10.5 35.5 M35 37 L37.5 35.5 M11 42 L8.5 42 M37 42 L39.5 42\"/></g></svg>",
+    "LIFTOFF": "<svg class=\"pi k-liftoff\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><g class=\"lo-st\"><path stroke-width=\"1\" opacity=\".5\" d=\"M12 10 V16 M10 19 V24\"/></g><g class=\"lo-mv\"><path stroke-width=\"2\" d=\"M21 3 C23.6 5 25.0 8 25.0 11 V29 H17.0 V11 C17.0 8 18.4 5 21 3 Z\"/><path stroke-width=\"2\" d=\"M18.5 29 L17.8 32 H24.2 L23.5 29\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M17 14 H25\"/><g class=\"lo-pl\"><path stroke-width=\"2\" d=\"M17.5 35 C16.5 39.5 13.5 42.5 9 44.5 M24.5 35 C25.5 39.5 28.5 42.5 33 44.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M21 35 V41\"/></g></g><path stroke-width=\"2\" d=\"M4 46 H31\"/><path stroke-width=\"2\" d=\"M38 8 V46\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M43 12 V46 M38 15 L43 21 L38 27 L43 33 L38 39 L43 45\"/><path stroke-width=\"2\" d=\"M38 17 H32\"/></svg>",
+    "ASCENT": "<svg class=\"pi k-ascent\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" data-fly=\"ascent\"><path stroke-width=\"2\" stroke-dasharray=\"0 4\" d=\"M5 45 C8 38 13 32 19.5 27.5\" class=\"as-trail\"/><g transform=\"translate(33 15) rotate(48)\" class=\"fl-rk\"><path stroke-width=\"2\" d=\"M0 -12 C2.3 -10 3.5 -7.5 3.5 -4.5 V8 H-3.5 V-4.5 C-3.5 -7.5 -2.3 -10 0 -12 Z\"/><path stroke-width=\"2\" d=\"M-2 8 L-2.7 10.6 H2.7 L2 8\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M-3.5 -1.5 H3.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M-1.6 13.5 Q0 18 1.6 13.5\" class=\"as-fl\"/></g><path stroke-width=\"1\" opacity=\".5\" d=\"M3 45 H21\"/><path stroke-width=\"2\" d=\"M11.3 33.2 L14.3 36.2\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M14.3 36.2 L18 40 H24\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M40 33 V39 M37 36 H43\"/></svg>",
+    "MAX Q": "<svg class=\"pi k-maxq\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><g class=\"mq-rk\"><path stroke-width=\"2\" d=\"M24 17 C26.275 19 27.5 22 27.5 25 V39 H20.5 V25 C20.5 22 21.725 19 24 17 Z\"/><path stroke-width=\"2\" d=\"M22.0 39 L21.3 42 H26.7 L26.0 39\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M20.5 27 H27.5\"/></g><g class=\"mq-a1\"><path stroke-width=\"2\" d=\"M16 24 Q24 6 32 24\"/></g><g class=\"mq-a2\"><path stroke-width=\"1\" opacity=\".5\" d=\"M11.5 29 Q24 -4 36.5 29\"/></g><g class=\"mq-a3\"><path stroke-width=\"1\" opacity=\".5\" stroke-dasharray=\"1 3\" d=\"M7 34 Q24 -14 41 34\"/></g></svg>",
+    "ORBIT INSERTION": "<svg class=\"pi k-orbit\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" data-fly=\"orbit\"><path stroke-width=\"2\" d=\"M4 32 A15 15 0 0 1 19 47\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M4 29 A18 18 0 0 1 22 47\"/><path stroke-width=\"2\" d=\"M2.53 14.53 L3.48 14.24 L4.42 13.99 L5.38 13.76 L6.34 13.57 L7.31 13.42 L8.28 13.30 L9.25 13.21 L10.22 13.15 L11.19 13.13 L12.16 13.14 L13.13 13.19 L14.10 13.27 L15.06 13.39 L16.01 13.53 L16.95 13.72 L17.89 13.93 L18.82 14.18 L19.74 14.46 L20.64 14.77 L21.53 15.12 L22.41 15.49 L23.28 15.90 L24.12 16.34 L24.95 16.81 L25.76 17.30 L26.56 17.83 L27.33 18.38 L28.08 18.97 L28.81 19.58 L29.51 20.21 L30.20 20.87 L30.85 21.56 L31.49 22.26 L32.09 23.00 L32.67 23.75 L33.22 24.52 L33.75 25.32 L34.24 26.13 L34.71 26.96 L35.14 27.81 L35.55 28.67 L35.92 29.55 L36.26 30.45 L36.57 31.35 L36.85 32.27 L37.09 33.20 L37.30 34.14 L37.48 35.09 L37.63 36.04 L37.74 37.00 L37.82 37.96 L37.86 38.93 L37.87 39.90 L37.84 40.88 L37.79 41.85 L37.69 42.82 L37.57 43.79 L37.41 44.75 L37.27 45.48\" class=\"ob-path\"/><g class=\"ob-mk\"><circle stroke-width=\"1\" opacity=\".5\" cx=\"37.63\" cy=\"36.04\" r=\"3.6\"/><path stroke-width=\"2\" d=\"M37.63 36.04 h0.01\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M43.03 36.04 H44.43 M32.23 36.04 H30.83 M37.63 30.64 V29.24 M37.63 41.44 V42.84\"/></g><g transform=\"translate(16.44 13.61) rotate(-79.2)\" class=\"fl-rk\"><path stroke-width=\"2\" d=\"M0 -6.5 C1.8 -5.2 2.7 -3.6 2.7 -1.8 V4.5 H-2.7 V-1.8 C-2.7 -3.6 -1.8 -5.2 0 -6.5 Z\"/><path stroke-width=\"2\" d=\"M-1.5 4.5 L-2 6.8 H2 L1.5 4.5\"/></g></svg>",
+    "COUNTDOWN": "<svg class=\"pi k-countdown\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path stroke-width=\"2\" d=\"M22 6 C24.6 8 26.0 11 26.0 14 V36 H18.0 V14 C18.0 11 19.4 8 22 6 Z\"/><path stroke-width=\"2\" d=\"M19.5 36 L18.8 39 H25.2 L24.5 36\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M18 18 H26\"/><path stroke-width=\"2\" d=\"M4 45 H44\"/><path stroke-width=\"2\" d=\"M36 4 V45\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M41 9 V45 M36 12 L41 18 L36 24 L41 30 L36 36 L41 42\"/><path stroke-width=\"2\" d=\"M36 15 H26\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M36 27 H26\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M17 45 V41 M27 45 V41\"/><path stroke-width=\"2\" d=\"M8 4 A4.5 4.5 0 1 1 3.5 8.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M8 8.5 V6.5 M8 8.5 H9.8\"/></svg>"
   };
   let sceneSeen = '';
-  const phaseIcon = body => { let i = 0; return '<svg class="pi" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body.replace(/<(path|circle)\b([^>]*?)\/>/g, (m, t, a) => /stroke-dasharray/.test(a) ? '<' + t + ' class="f"' + a + '/>' : '<' + t + ' class="d" pathLength="1" style="--i:' + (i++) + '"' + a + '/>') + '</svg>'; };
+  const REDUCE = !!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+  function flights() { // Ascent et Orbit : le lanceur suit une trajectoire, puis se fige à sa place d’origine
+    if (REDUCE) return;
+    document.querySelectorAll('.scene.play .pi[data-fly]').forEach(svg => {
+      if (svg.dataset.go) return; svg.dataset.go = '1';
+      const rk = svg.querySelector('.fl-rk'); if (!rk) return;
+      const fin = rk.getAttribute('transform'), m = /translate\(\s*([-\d.]+)[ ,]+([-\d.]+)\s*\)/.exec(fin);
+      if (!m) { rk.style.opacity = '1'; return; }
+      const fx = +m[1], fy = +m[2], kind = svg.dataset.fly, num = d => (d.match(/-?\d+\.?\d*/g) || []).map(Number);
+      let pts = [];
+      if (kind === 'orbit') {
+        const n = num(svg.querySelector('.ob-path').getAttribute('d')), all = [];
+        for (let i = 0; i + 1 < n.length; i += 2) all.push([n[i], n[i + 1]]);
+        let k = 0, best = 1e9;
+        all.forEach((q, i) => { const dd = Math.hypot(q[0] - fx, q[1] - fy); if (dd < best) { best = dd; k = i; } });
+        pts = all.slice(k).reverse(); pts[pts.length - 1] = [fx, fy]; // du bas de l’orbite jusqu’à la position finale
+      } else {
+        const b = num(svg.querySelector('.as-trail').getAttribute('d'));
+        for (let i = 0; i <= 14; i++) {
+          const t = i / 14, u = 1 - t;
+          pts.push([u*u*u*b[0] + 3*u*u*t*b[2] + 3*u*t*t*b[4] + t*t*t*b[6], u*u*u*b[1] + 3*u*u*t*b[3] + 3*u*t*t*b[5] + t*t*t*b[7]]);
+        }
+        for (let i = 1; i <= 6; i++) pts.push([b[6] + (fx - b[6]) * i / 6, b[7] + (fy - b[7]) * i / 6]);
+      }
+      const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+      const T = L[L.length - 1];
+      const at = s => { s = Math.max(0, Math.min(T, s)); let i = 1; while (i < L.length - 1 && L[i] < s) i++; const f = (s - L[i - 1]) / ((L[i] - L[i - 1]) || 1); return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f]; };
+      const dur = kind === 'orbit' ? 3000 : 2400, delay = 250, fl = svg.querySelector('.as-fl'), mk = svg.querySelector('.ob-mk');
+      const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2, t0 = performance.now();
+      const done = () => { rk.setAttribute('transform', fin); rk.style.opacity = '1'; if (fl) fl.removeAttribute('transform'); };
+      const frame = now => {
+        if (!svg.isConnected) return;
+        const t = Math.max(0, Math.min(1, (now - t0 - delay) / dur));
+        if (t >= 1) return done();
+        const s = ease(t) * T, a = at(s - .8), c = at(s), z = at(s + .8);
+        rk.setAttribute('transform', 'translate(' + c[0].toFixed(2) + ' ' + c[1].toFixed(2) + ') rotate(' + (Math.atan2(z[0] - a[0], -(z[1] - a[1])) * 180 / Math.PI).toFixed(1) + ')');
+        rk.style.opacity = String(Math.min(1, t * 12));
+        if (fl) fl.setAttribute('transform', 'translate(0 13.5) scale(1 ' + (1 + .5 * Math.sin(now / 40) * (1 - t * .6)).toFixed(2) + ') translate(0 -13.5)');
+        if (mk && !mk.classList.contains('hit') && Math.hypot(c[0] - 37.63, c[1] - 36.04) < 3) mk.classList.add('hit');
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    });
+  }
   const sceneHead = title => { // « 2. IGNITION – The Interview » → repère de phase + nom de scène
     const m = /^\s*(\d+)\s*[.·:)]\s*(.+?)\s+[–—-]\s+(.+?)\s*$/.exec(String(title));
     if (!m) return null;
@@ -706,7 +770,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       const hd = sceneHead(d.title);
       if (!hd) return '<div class="scene"><h1>' + esc(d.title) + '</h1><div class="rule"></div>' + sub + '</div>';
       const play = sceneSeen !== d.title; sceneSeen = d.title; // l’animation ne se joue qu’à l’apparition de la scène, pas à chaque indication
-      return '<div class="scene' + (play ? ' play' : '') + '"><p class="ph">' + (hd.ic ? phaseIcon(hd.ic) : '') + '<span>' + esc(hd.n) + ' · ' + esc(hd.ph) + '</span></p><h1 class="nm">' + esc(hd.name) + '</h1><div class="rule"></div>' + sub + '</div>';
+      return '<div class="scene' + (play ? ' play' : '') + '"><p class="ph">' + (hd.ic || '') + '<span>' + esc(hd.n) + ' · ' + esc(hd.ph) + '</span></p><h1 class="nm">' + esc(hd.name) + '</h1><div class="rule"></div>' + sub + '</div>';
     }
     let h = '', ul = false;
     (d.lines || []).forEach(l => {
@@ -876,7 +940,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     const me = S && S.me;
     document.body.classList.toggle('longx', !!(S && S.phase === 'reveal' && S.expl && S.expl.length > 240));
     const key = [isHost, !!sess, S ? S.phase : '-', S ? S.i + ':' + S.q + ':' + (S.slide ? S.slide.sub : '') + ':' + S.back : '', me ? me.ans : '', err].join('|');
-    if (key !== view) { view = key; if (!(S && S.phase === 'slide' && S.slide && S.slide.t === 'scene')) sceneSeen = ''; isHost ? buildHost() : buildPlayer(); requestAnimationFrame(() => { fitScene(); patch(); }); }
+    if (key !== view) { view = key; if (!(S && S.phase === 'slide' && S.slide && S.slide.t === 'scene')) sceneSeen = ''; isHost ? buildHost() : buildPlayer(); requestAnimationFrame(() => { fitScene(); flights(); patch(); }); }
     else patch();
   }
 
