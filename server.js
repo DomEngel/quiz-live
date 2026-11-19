@@ -194,17 +194,17 @@ async function api(req, res, url) {
     req.on('close', () => g.clients.delete(cl));
     return;
   }
-  if (req.method !== 'POST') return fail(res, 405, 'Méthode non autorisée');
+  if (req.method !== 'POST') return fail(res, 405, 'Method not allowed');
   let b;
-  try { b = await readBody(req); } catch (e) { return fail(res, 400, 'Requête invalide'); }
+  try { b = await readBody(req); } catch (e) { return fail(res, 400, 'Invalid request'); }
 
   if (url.pathname === '/api/create') {
     if (String(b.password || '') !== HOST_PASSWORD) {
       await new Promise(r => setTimeout(r, 600));
-      return fail(res, 403, 'Mot de passe incorrect');
+      return fail(res, 403, 'Incorrect password');
     }
     const questions = cleanQuestions(b.questions);
-    if (!questions) return fail(res, 400, 'Aucune étape valide');
+    if (!questions) return fail(res, 400, 'No valid step');
     if (games.size >= MAX_GAMES) return fail(res, 503, 'Trop de parties en cours');
     const dur = Math.min(300, Math.max(5, Number(b.dur) || 30)) * 1000;
     const title = String(b.title || '').trim().slice(0, 60) || 'Live quiz';
@@ -238,7 +238,7 @@ async function api(req, res, url) {
     return json(res, 200, { ok: true });
   }
   if (url.pathname === '/api/host') {
-    if (String(b.token || '') !== g.token) return fail(res, 403, 'Non autorisé');
+    if (String(b.token || '') !== g.token) return fail(res, 403, 'Not authorized');
     hostAction(g, String(b.action || ''));
     return json(res, 200, { ok: true });
   }
@@ -378,7 +378,7 @@ const DEFAULT_QUIZ = [
   "e": ""
  }
 ];
-const DEFAULT_TEXT = "How many people work at ArianeGroup?\nAbout 2,000\n*About 8,000\nAbout 15,000\nAbout 30,000\n> About 8,000 people, in France and in Germany.\n\nHow many of them are based in Germany?\nAbout 300\n*About 1,200\nAbout 4,000\nAbout 6,000\n> About 1,200 people, roughly 15 % of the group (85 % in France).\n\nHow many main sites does ArianeGroup have in France and in Germany?\n13 in France, 1 in Germany\n*9 in France, 4 in Germany\n6 in France, 6 in Germany\n4 in France, 9 in Germany\n> 13 main sites: 8 in mainland France and 1 in French Guiana (the launch base), plus 4 in Germany.\n\nWhich side carries most of the defence activities?\n*Mainly France\nMainly Germany\nHalf and half\nNeither: ArianeGroup is civil only\n> ArianeGroup builds civil and military launchers. Defence is mainly French; the German side works mainly on civil programmes. In France, even civil activities follow defence-level security rules.\n\nWhat is the official language of ArianeGroup?\nFrench\nGerman\n*English\nFrench… until a German colleague walks in\n> English. The only official language of the group… that nobody speaks as a native.\n\nSCÈNE : 2. IGNITION – The Interview\nRight here. Right now.\n\nCONTENU : Two roads to the same engineer\n- France: the Grandes Écoles. The name of the school and its network weigh on a whole career.\n- Germany: dual study (Duales Studium). The DHBW is the largest university in Baden-Württemberg: around 33,000 students and 9,000 partner companies.\n- Students alternate study and work in a company, and are paid by that company throughout.\nDifferent road. Same rocket science.\n\nCONTENU : English: who speaks it best?\n- EF English Proficiency Index 2025: Germany ranks #4 worldwide (very high level), France #38 (moderate level).\n- On the ground, the level varies on both sides: it is more a question of generation than of nationality.\nAnd at ArianeGroup, nobody is a native speaker of the official language.\n\nCONTENU : Who decides?\n- The French manager decides quickly, says what to do… and may change the decision. Seen from Germany: unstable.\n- The German manager asks « What do you propose? », consults… and then the decision is final. Seen from France: a boss who doesn’t decide.\nSame goal: a good decision. Two different timings.\n\nSCÈNE : 3. LIFTOFF – The First Day\nThree weeks later. 7:00 a.m.\n9:30 a.m.\n11:00 a.m.\n\nSCÈNE : 4. ASCENT – Lost in Translation\nAfter lunch\n\nTrue or false: in France, a contract is only valid if you write « lu et approuvé » by hand.\nTrue\n*False\n> False. The French Court of Cassation ruled as early as 1993 that this mention is a formality with no legal effect: the signature is enough. And yet everybody still asks for it.\n\nWhen are French and German teams most likely to be at their desks at the same time?\n7:00 – 9:00\n*9:30 – 11:00\n12:00 – 13:30\n17:00 – 19:00\n> In Germany, people often start between 6:30 and 8:00, have a 30-minute lunch from 11:00, and offices can be empty from 16:00 (part-time often means a free afternoon). In France, people start around 9:00-9:30, have a one-hour lunch around 12:30 and stay until 18:00-19:00. Your shared windows: about 9:30-11:00 and 13:30-16:00.\n\nWho thinks the other side is hiding information?\nThe French\nThe Germans\n*Both\nNobody\n> Both. The Germans tend to protect their information; the French simply don’t think of sharing it. It is rarely retention: it is forgetting. The reflex to build: « Who on the other side needs this? »\n\nSCÈNE : 5. MAX Q – The Big Meeting\nThe weekly team meeting\n\nSCÈNE : 6. ORBIT INSERTION – The Conclusion\n\nFor you, good Franco-German cooperation is above all…\nListening before deciding\nChoosing our working language together\nSharing information as a reflex\nRespecting each other’s rhythm\n\nWhat do you value most in your colleagues from across the border?\nTheir expertise\nTheir reliability\nTheir agility\nTheir different way of seeing the same problem\n\nTomorrow, with my mixed team, I will…\nAsk which language people prefer for our meetings\nAsk myself « who on the other side needs this? » before sending\nSchedule our meetings in our shared time window\nAgree on how we decide, before deciding\n\nWhat makes Ariane 6 fly?\nThe French lower stage\nThe German upper stage\nA very long meeting\n*Both stages, letting go at the same second\n\nCONTENU : Two Stages, One Rocket\nWe are not that different. And it’s exactly that bit that makes it fly.\nThank you! Danke! Merci!";
+const DEFAULT_TEXT = "How many people work at ArianeGroup?\nAbout 2,000\n*About 8,000\nAbout 15,000\nAbout 30,000\n> About 8,000 people, in France and in Germany.\n\nHow many of them are based in Germany?\nAbout 300\n*About 1,200\nAbout 4,000\nAbout 6,000\n> About 1,200 people, roughly 15 % of the group (85 % in France).\n\nHow many main sites does ArianeGroup have in France and in Germany?\n13 in France, 1 in Germany\n*9 in France, 4 in Germany\n6 in France, 6 in Germany\n4 in France, 9 in Germany\n> 13 main sites: 8 in mainland France and 1 in French Guiana (the launch base), plus 4 in Germany.\n\nWhich side carries most of the defence activities?\n*Mainly France\nMainly Germany\nHalf and half\nNeither: ArianeGroup is civil only\n> ArianeGroup builds civil and military launchers. Defence is mainly French; the German side works mainly on civil programmes. In France, even civil activities follow defence-level security rules.\n\nWhat is the official language of ArianeGroup?\nFrench\nGerman\n*English\nFrench… until a German colleague walks in\n> English. The only official language of the group… that nobody speaks as a native.\n\nSCENE: 2. IGNITION – The Interview\nRight here. Right now.\n\nCONTENT: Two roads to the same engineer\n- France: the Grandes Écoles. The name of the school and its network weigh on a whole career.\n- Germany: dual study (Duales Studium). The DHBW is the largest university in Baden-Württemberg: around 33,000 students and 9,000 partner companies.\n- Students alternate study and work in a company, and are paid by that company throughout.\nDifferent road. Same rocket science.\n\nCONTENT: English: who speaks it best?\n- EF English Proficiency Index 2025: Germany ranks #4 worldwide (very high level), France #38 (moderate level).\n- On the ground, the level varies on both sides: it is more a question of generation than of nationality.\nAnd at ArianeGroup, nobody is a native speaker of the official language.\n\nCONTENT: Who decides?\n- The French manager decides quickly, says what to do… and may change the decision. Seen from Germany: unstable.\n- The German manager asks « What do you propose? », consults… and then the decision is final. Seen from France: a boss who doesn’t decide.\nSame goal: a good decision. Two different timings.\n\nSCENE: 3. LIFTOFF – The First Day\nThree weeks later. 7:00 a.m.\n9:30 a.m.\n11:00 a.m.\n\nSCENE: 4. ASCENT – Lost in Translation\nAfter lunch\n\nTrue or false: in France, a contract is only valid if you write « lu et approuvé » by hand.\nTrue\n*False\n> False. The French Court of Cassation ruled as early as 1993 that this mention is a formality with no legal effect: the signature is enough. And yet everybody still asks for it.\n\nWhen are French and German teams most likely to be at their desks at the same time?\n7:00 – 9:00\n*9:30 – 11:00\n12:00 – 13:30\n17:00 – 19:00\n> In Germany, people often start between 6:30 and 8:00, have a 30-minute lunch from 11:00, and offices can be empty from 16:00 (part-time often means a free afternoon). In France, people start around 9:00-9:30, have a one-hour lunch around 12:30 and stay until 18:00-19:00. Your shared windows: about 9:30-11:00 and 13:30-16:00.\n\nWho thinks the other side is hiding information?\nThe French\nThe Germans\n*Both\nNobody\n> Both. The Germans tend to protect their information; the French simply don’t think of sharing it. It is rarely retention: it is forgetting. The reflex to build: « Who on the other side needs this? »\n\nSCENE: 5. MAX Q – The Big Meeting\nThe weekly team meeting\n\nSCENE: 6. ORBIT INSERTION – The Conclusion\n\nFor you, good Franco-German cooperation is above all…\nListening before deciding\nChoosing our working language together\nSharing information as a reflex\nRespecting each other’s rhythm\n\nWhat do you value most in your colleagues from across the border?\nTheir expertise\nTheir reliability\nTheir agility\nTheir different way of seeing the same problem\n\nTomorrow, with my mixed team, I will…\nAsk which language people prefer for our meetings\nAsk myself « who on the other side needs this? » before sending\nSchedule our meetings in our shared time window\nAgree on how we decide, before deciding\n\nWhat makes Ariane 6 fly?\nThe French lower stage\nThe German upper stage\nA very long meeting\n*Both stages, letting go at the same second\n\nCONTENT: Two Stages, One Rocket\nWe are not that different. And it’s exactly that bit that makes it fly.\nThank you! Danke! Merci!";
 
 const CSS = `
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -620,16 +620,16 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (es) es.close();
     es = new EventSource('/api/events?code=' + encodeURIComponent(sess.code) + (isScreen ? '&view=' + sess.view : isHost ? '&token=' + sess.token : '&id=' + sess.id));
     es.addEventListener('state', e => { S = JSON.parse(e.data); deadline = Date.now() + (S.rem || 0); render(); });
-    es.addEventListener('gone', () => { es.close(); save(null); sess = null; S = null; err = isScreen ? 'Cette partie est terminée. Rouvrez l’écran de projection depuis la page animateur.' : 'Game over or not found.'; render(); });
+    es.addEventListener('gone', () => { es.close(); save(null); sess = null; S = null; err = isScreen ? 'This game is over. Reopen the projection screen from the host page.' : 'Game over or not found.'; render(); });
   }
   const act = a => { if (!demo && !isScreen) post('/api/host', { code: sess.code, token: sess.token, action: a }).catch(() => {}); };
 
   /* format texte : question, réponses (la bonne commence par *), puis "> explication" */
   function parseQuiz(t) {
     return t.split(/\n\s*\n/).map(b => b.split('\n').map(l => l.trim()).filter(Boolean)).filter(l => l.length).map(l => {
-      let m = l[0].match(/^sc[eèé]ne\s*:\s*(.*)$/i);
+      let m = l[0].match(/^sc[eèé]ne\s*:\s*(.*)$/i); // « SCENE: … » (ou SCÈNE)
       if (m) return { t: 'scene', title: m[1], sub: l.slice(1).join('\n') };
-      m = l[0].match(/^contenu\s*:\s*(.*)$/i);
+      m = l[0].match(/^(?:content|contenu)\s*:\s*(.*)$/i);
       if (m) return { t: 'info', title: m[1], lines: l.slice(1) };
       let c = -1; const o = [], e = [];
       l.slice(1).forEach(x => {
@@ -678,15 +678,15 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   }
   function downloadRecap() {
     const q = v => '"' + String(v).replace(/"/g, '""') + '"', L2 = ['A', 'B', 'C', 'D', 'E', 'F'];
-    const lines = [['N°', 'Type', 'Question', 'Réponse', 'Nombre', 'Pourcentage', 'Bonne réponse'].map(q).join(';')];
+    const lines = [['No.', 'Type', 'Question', 'Answer', 'Count', 'Percentage', 'Correct answer'].map(q).join(';')];
     (S.recap || []).filter(Boolean).forEach((r, i) => {
       let rows = (r.o || []).map((x, j) => ({ t: x.t, n: x.n, j }));
       if (r.poll) rows.sort((a, b) => b.n - a.n || a.j - b.j);
-      rows.forEach(x => lines.push([i + 1, r.poll ? 'Sondage' : 'Quiz', r.q, (L2[x.j] || '') + '. ' + x.t, x.n, pc(x.n, r.n) + ' %', !r.poll && x.j === r.c ? 'oui' : ''].map(q).join(';')));
+      rows.forEach(x => lines.push([i + 1, r.poll ? 'Poll' : 'Quiz', r.q, (L2[x.j] || '') + '. ' + x.t, x.n, pc(x.n, r.n) + ' %', !r.poll && x.j === r.c ? 'yes' : ''].map(q).join(';')));
     });
     const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = 'synthese-quiz-' + ((S && S.code) || '') + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+    a.download = 'quiz-summary-' + ((S && S.code) || '') + '.csv'; document.body.appendChild(a); a.click(); a.remove();
   }
 
   const PHASE_ICONS = {
@@ -762,7 +762,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   }
   window.addEventListener('resize', fitScene);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitScene);
-  const nextLabel = () => ({ sub: 'Indication suivante', q: 'Lancer la question', scene: 'Scène suivante', info: 'Afficher le contenu', end: 'Terminer' })[S.next] || 'Suivant';
+  const nextLabel = () => ({ sub: 'Next cue', q: 'Start the question', scene: 'Next scene', info: 'Show the content', end: 'Finish' })[S.next] || 'Next';
   function slide() {
     const d = S.slide || {};
     if (d.t === 'scene') {
@@ -784,7 +784,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   }
   const plural = (n, w) => n + ' ' + w + (n > 1 ? 's' : '');
   const set = (html, bind) => { app.innerHTML = html; if (bind) bind(); const bk = $('#bk'); if (bk) bk.onclick = () => act('prev'); };
-  const back = () => S && S.back ? '<button class="btn ghost back" id="bk">Retour</button>' : '';
+  const back = () => S && S.back ? '<button class="btn ghost back" id="bk">Back</button>' : '';
 
   /* met à jour barres, pourcentages et compteurs sans tout redessiner */
   function patch() {
@@ -817,23 +817,23 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
 
   /* ---------- animateur ---------- */
   function buildHost() {
-    if (isScreen && !sess) return set(header() + '<div class="spacer"></div><div class="card center"><h2>Écran de projection</h2><div class="muted" style="margin-top:8px">' + esc(err || 'Ouvrez cet écran avec le bouton « Écran de projection » de la page animateur.') + '</div></div><div class="spacer"></div>');
+    if (isScreen && !sess) return set(header() + '<div class="spacer"></div><div class="card center"><h2>Projection screen</h2><div class="muted" style="margin-top:8px">' + esc(err || 'Open this screen with the “Projection screen” button on the host page.') + '</div></div><div class="spacer"></div>');
     if (!sess) {
       let pw = ''; try { pw = sessionStorage.getItem('qz_pw') || ''; } catch (e) {}
-      return set(header() + '<h1>Nouvelle partie</h1>' + errHTML() +
-        '<div><label>Mot de passe animateur</label><input id="pw" type="password" value="' + esc(pw) + '"></div>' +
-        '<div><label>Titre affiché</label><input id="ti" maxlength="60" value="Two Stages, One Rocket"></div>' +
-        '<div><label>Durée par question (secondes)</label><input id="du" type="number" min="5" max="300" value="30"></div>' +
-        '<label class="check"><input id="lv" type="checkbox" checked> Afficher les pourcentages en direct pendant la question (sinon, seulement à la révélation)</label>' +
-        '<div><label>Déroulé</label><div class="muted" style="margin-bottom:8px">Une ligne vide entre deux étapes, dans l’ordre où vous les lancerez.<br><b>Question :</b> la question, puis 2 à 4 réponses. La bonne commence par * (sans *, c’est un sondage). Une ligne qui commence par &gt; est l’explication.<br><b>Écran de scène :</b> « SCÈNE : nom de la scène », puis une indication de temps ou de lieu par ligne. Elles s’affichent l’une après l’autre, à votre commande.<br><b>Écran de contenu :</b> « CONTENU : titre », puis le texte. Une ligne qui commence par - devient une puce.</div><textarea id="qs"></textarea></div>' +
-        '<button class="btn" id="cr">Créer la partie</button>',
+      return set(header() + '<h1>New game</h1>' + errHTML() +
+        '<div><label>Host password</label><input id="pw" type="password" value="' + esc(pw) + '"></div>' +
+        '<div><label>Displayed title</label><input id="ti" maxlength="60" value="Two Stages, One Rocket"></div>' +
+        '<div><label>Time per question (seconds)</label><input id="du" type="number" min="5" max="300" value="30"></div>' +
+        '<label class="check"><input id="lv" type="checkbox" checked> Show live percentages during the question (otherwise only at the reveal)</label>' +
+        '<div><label>Running order</label><div class="muted" style="margin-bottom:8px">One blank line between two steps, in the order you will run them.<br><b>Question:</b> the question, then 2 to 4 answers. The correct one starts with * (without *, it is a poll). A line starting with &gt; is the explanation.<br><b>Scene screen:</b> “SCENE: 4. ASCENT – Scene name”, then one time or place cue per line. They appear one after another, on your command.<br><b>Content screen:</b> “CONTENT: title”, then the text. A line starting with - becomes a bullet.</div><textarea id="qs"></textarea></div>' +
+        '<button class="btn" id="cr">Create the game</button>',
         () => {
           $('#qs').value = quizText();
           $('#cr').onclick = async () => {
             const keep = { qs: $('#qs').value, du: $('#du').value, ti: $('#ti').value, lv: $('#lv').checked };
             const back = () => { view = ''; render(); $('#qs').value = keep.qs; $('#du').value = keep.du; $('#ti').value = keep.ti; $('#lv').checked = keep.lv; };
             const questions = parseQuiz(keep.qs);
-            if (!questions.length) { err = 'Aucune étape valide. Vérifiez le format des questions, scènes et contenus.'; return back(); }
+            if (!questions.length) { err = 'No valid step. Check the format of questions, scenes and content.'; return back(); }
             try {
               const password = $('#pw').value;
               try { sessionStorage.setItem('qz_pw', password); } catch (e) {}
@@ -848,10 +848,10 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       const url = location.origin + '/?c=' + S.code;
       return set(header() + '<div class="lobby"><div class="center"><div class="qr" id="qr"></div></div><div><div class="kicker">Scan the QR code, or go to</div><div class="url">' + esc(location.host) + '</div><div class="kicker" style="margin-top:18px">Game code</div><div class="code">' + esc(S.code) + '</div></div></div>' +
         '<div class="card"><div class="meta" id="cnt"></div><div class="chips" id="names" style="margin-top:12px"></div></div>' +
-        (S.view ? '<div class="card ctrl"><div><div class="kicker">Projeter dans la salle</div><p class="muted">Ouvrez cet écran sur l’ordinateur relié au vidéoprojecteur : il affiche le quiz sans aucun bouton.</p>' +
-          '<a class="btn ghost" href="/screen?c=' + encodeURIComponent(S.code) + '&k=' + encodeURIComponent(S.view) + '" target="_blank" rel="noopener">Écran de projection</a></div>' +
-          '<div class="remote"><div class="qr small" id="rq"></div><div><div class="kicker">Piloter depuis mon téléphone</div><p class="muted">Scannez ce code avec votre téléphone : il devient la télécommande. Ne le montrez pas aux participants.</p></div></div></div>' : '') +
-        '<div class="spacer"></div><button class="btn" id="go">Démarrer · ' + plural(S.steps || S.total, 'étape') + '</button>',
+        (S.view ? '<div class="card ctrl"><div><div class="kicker">Project in the room</div><p class="muted">Open this screen on the computer connected to the projector: it shows the quiz without any buttons.</p>' +
+          '<a class="btn ghost" href="/screen?c=' + encodeURIComponent(S.code) + '&k=' + encodeURIComponent(S.view) + '" target="_blank" rel="noopener">Projection screen</a></div>' +
+          '<div class="remote"><div class="qr small" id="rq"></div><div><div class="kicker">Control from my phone</div><p class="muted">Scan this code with your phone: it becomes the remote control. Do not show it to participants.</p></div></div></div>' : '') +
+        '<div class="spacer"></div><button class="btn" id="go">Start · ' + plural(S.steps || S.total, 'step') + '</button>',
         () => {
           $('#go').onclick = () => act('start');
           try { new QRCode($('#qr'), { text: url, width: 240, height: 240 }); } catch (e) { $('#qr').remove(); }
@@ -859,11 +859,11 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
         });
     }
     if (S.phase === 'slide') {
-      return set(header() + slide() + '<div class="spacer"></div><div class="foot"><button class="btn" id="nx">' + nextLabel() + '</button>' + back() + (S.part ? '<div class="meta part">Indication <b>' + S.part[0] + '</b> / ' + S.part[1] + '</div>' : '') + '</div>',
+      return set(header() + slide() + '<div class="spacer"></div><div class="foot"><button class="btn" id="nx">' + nextLabel() + '</button>' + back() + (S.part ? '<div class="meta part">Cue <b>' + S.part[0] + '</b> / ' + S.part[1] + '</div>' : '') + '</div>',
         () => { $('#nx').onclick = () => act('next'); });
     }
     if (S.phase === 'question') {
-      return set(header() + qhead(true) + tiles(S.question) + '<div class="spacer"></div><div class="foot"><button class="btn" id="rv">' + (S.poll ? 'Voir les résultats' : 'Révéler la réponse') + '</button>' + back() + '<div class="meta" id="ans"></div></div>',
+      return set(header() + qhead(true) + tiles(S.question) + '<div class="spacer"></div><div class="foot"><button class="btn" id="rv">' + (S.poll ? 'Show results' : 'Reveal the answer') + '</button>' + back() + '<div class="meta" id="ans"></div></div>',
         () => { $('#rv').onclick = () => act('reveal'); });
     }
     if (S.phase === 'reveal') {
@@ -873,7 +873,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     }
     set(header() + '<h1>Thank you all</h1><div class="card recap"><div class="kicker">Summary</div>' + recapRows() +
       '<div class="muted" style="margin-top:10px">Quiz: percentage of correct answers. Polls: share of each answer, from most to least chosen.</div></div>' +
-      '<div class="spacer"></div><div class="foot endfoot"><button class="btn" id="nw">Nouvelle partie</button><button class="btn ghost" id="rs">Rejouer avec les mêmes participants</button>' + (isScreen ? '' : '<button class="btn ghost" id="dl">Télécharger (Excel)</button><button class="btn ghost" id="pr">Enregistrer en PDF</button>') + back() + '</div>',
+      '<div class="spacer"></div><div class="foot endfoot"><button class="btn" id="nw">New game</button><button class="btn ghost" id="rs">Replay with the same participants</button>' + (isScreen ? '' : '<button class="btn ghost" id="dl">Download (Excel)</button><button class="btn ghost" id="pr">Save as PDF</button>') + back() + '</div>',
       () => {
         $('#rs').onclick = () => act('restart');
         if ($('#dl')) { $('#dl').onclick = downloadRecap; $('#pr').onclick = () => window.print(); }
@@ -953,7 +953,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (ph === 'question') { S.dur = 30000; S.rem = 19000; if (isHost) S.counts = [5, 3, 29, 4]; else S.me = { name: 'Camille', ans: null }; }
     if (ph === 'reveal') { S.counts = [5, 3, 29, 4]; S.correct = Q.c; S.expl = Q.e; if (!isHost) S.me = { name: 'Camille', ans: 2 }; }
     if (ph === 'scene') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'scene', title: '4. ASCENT – Lost in Translation', sub: 'After lunch' }; S.part = [1, 2]; S.back = true; }
-    if (ph === 'info') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'info', title: 'Focus sur les stéréotypes', lines: ['Un stéréotype est une croyance simplifiée que l’on applique à tout un groupe.', '- Il fait gagner du temps, mais il fausse le jugement', '- Tout le monde en a, souvent sans le savoir', '- Le repérer est la première étape pour s’en défaire'] }; }
+    if (ph === 'info') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'info', title: 'Focus on stereotypes', lines: ['A stereotype is a simplified belief applied to a whole group.', '- It saves time, but it distorts judgement', '- Everyone has them, often without knowing it', '- Spotting them is the first step to getting rid of them'] }; }
     if (ph === 'end') S.recap = DEFAULT_QUIZ.map((x, i) => ({ q: x.q, n: 44 - i, good: x.c < 0 ? null : 30 - 4 * i, poll: x.c < 0, c: x.c, o: x.o.map((t, j) => ({ t, n: [9, 21, 6, 8][j] || 1 })) }));
     deadline = Date.now() + (S.rem || 0);
   }
@@ -969,7 +969,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   render();
 }
 
-const PAGE = '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">' +
+const PAGE = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
   '<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#000d1a"><title>Live quiz</title>' +
   '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
   '<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">' +
@@ -992,4 +992,4 @@ http.createServer((req, res) => {
   } else {
     res.writeHead(404); res.end('Not found');
   }
-}).listen(PORT, () => console.log('Quiz en direct sur le port ' + PORT));
+}).listen(PORT, () => console.log('Live quiz on port ' + PORT));
