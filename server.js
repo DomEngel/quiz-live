@@ -270,48 +270,6 @@ const DEFAULT_QUIZ = [
   "e": "About 1,200 people, roughly 15 % of the group (85 % in France)."
  },
  {
-  "q": "How many main sites does ArianeGroup have in France and in Germany?",
-  "o": [
-   "13 in France, 1 in Germany",
-   "9 in France, 4 in Germany",
-   "6 in France, 6 in Germany",
-   "4 in France, 9 in Germany"
-  ],
-  "c": 1,
-  "e": "13 main sites: 8 in mainland France and 1 in French Guiana (the launch base), plus 4 in Germany."
- },
- {
-  "q": "Which side carries most of the defence activities?",
-  "o": [
-   "Mainly France",
-   "Mainly Germany",
-   "Half and half",
-   "Neither: ArianeGroup is civil only"
-  ],
-  "c": 0,
-  "e": "ArianeGroup builds civil and military launchers. Defence is mainly French; the German side works mainly on civil programmes. In France, even civil activities follow defence-level security rules."
- },
- {
-  "q": "What is the official language of ArianeGroup?",
-  "o": [
-   "French",
-   "German",
-   "English",
-   "French… until a German colleague walks in"
-  ],
-  "c": 2,
-  "e": "English. The only official language of the group… that nobody speaks as a native."
- },
- {
-  "q": "True or false: in France, a contract is only valid if you write « lu et approuvé » by hand.",
-  "o": [
-   "True",
-   "False"
-  ],
-  "c": 1,
-  "e": "False. The French Court of Cassation ruled as early as 1993 that this mention is a formality with no legal effect: the signature is enough. And yet everybody still asks for it."
- },
- {
   "q": "When are French and German teams most likely to be at their desks at the same time?",
   "o": [
    "7:00 – 9:00",
@@ -323,6 +281,17 @@ const DEFAULT_QUIZ = [
   "e": "In Germany, people often start between 6:30 and 8:00, have a 30-minute lunch from 11:00, and offices can be empty from 16:00 (part-time often means a free afternoon). In France, people start around 9:00-9:30, have a one-hour lunch around 12:30 and stay until 18:00-19:00. Your shared windows: about 9:30-11:00 and 13:30-16:00."
  },
  {
+  "q": "And if we add Kourou? When can France, Germany and Kourou all meet (Paris / Munich time)?",
+  "o": [
+   "9:30 – 11:00",
+   "13:30 – 16:00",
+   "17:00 – 19:00",
+   "Never"
+  ],
+  "c": 1,
+  "e": "In winter, Kourou is 4 hours behind Paris and Munich (5 hours in summer). Base working hours there are about 8:00 to 17:15, so Kourou starts around noon European time. The only window for all three: about 13:30-16:00 in Paris and Munich (9:30-12:00 in Kourou, in winter). Two and a half hours a day."
+ },
+ {
   "q": "Who thinks the other side is hiding information?",
   "o": [
    "The French",
@@ -331,7 +300,7 @@ const DEFAULT_QUIZ = [
    "Nobody"
   ],
   "c": 2,
-  "e": "Both. The Germans tend to protect their information; the French simply don’t think of sharing it. It is rarely retention: it is forgetting. The reflex to build: « Who on the other side needs this? »"
+  "e": "Both. Export control slows sharing on the French side, the Betriebsrat on the German side. And the French often simply don’t think of sharing: it is rarely retention, it is forgetting. The reflex to build: “Who on the other side needs this?”"
  },
  {
   "q": "For you, good Franco-German cooperation is above all…",
@@ -359,7 +328,7 @@ const DEFAULT_QUIZ = [
   "q": "Tomorrow, with my mixed team, I will…",
   "o": [
    "Ask which language people prefer for our meetings",
-   "Ask myself « who on the other side needs this? » before sending",
+   "Ask myself “who on the other side needs this?” before sending",
    "Schedule our meetings in our shared time window",
    "Agree on how we decide, before deciding"
   ],
@@ -378,7 +347,7 @@ const DEFAULT_QUIZ = [
   "e": ""
  }
 ];
-const DEFAULT_TEXT = "How many people work at ArianeGroup?\nAbout 2,000\n*About 8,000\nAbout 15,000\nAbout 30,000\n> About 8,000 people, in France and in Germany.\n\nHow many of them are based in Germany?\nAbout 300\n*About 1,200\nAbout 4,000\nAbout 6,000\n> About 1,200 people, roughly 15 % of the group (85 % in France).\n\nHow many main sites does ArianeGroup have in France and in Germany?\n13 in France, 1 in Germany\n*9 in France, 4 in Germany\n6 in France, 6 in Germany\n4 in France, 9 in Germany\n> 13 main sites: 8 in mainland France and 1 in French Guiana (the launch base), plus 4 in Germany.\n\nWhich side carries most of the defence activities?\n*Mainly France\nMainly Germany\nHalf and half\nNeither: ArianeGroup is civil only\n> ArianeGroup builds civil and military launchers. Defence is mainly French; the German side works mainly on civil programmes. In France, even civil activities follow defence-level security rules.\n\nWhat is the official language of ArianeGroup?\nFrench\nGerman\n*English\nFrench… until a German colleague walks in\n> English. The only official language of the group… that nobody speaks as a native.\n\nSCENE: 2. IGNITION – The Interview\nRight here. Right now.\n\nCONTENT: Two roads to the same engineer\n- France: the Grandes Écoles. The name of the school and its network weigh on a whole career.\n- Germany: dual study (Duales Studium). The DHBW is the largest university in Baden-Württemberg: around 33,000 students and 9,000 partner companies.\n- Students alternate study and work in a company, and are paid by that company throughout.\nDifferent road. Same rocket science.\n\nCONTENT: English: who speaks it best?\n- EF English Proficiency Index 2025: Germany ranks #4 worldwide (very high level), France #38 (moderate level).\n- On the ground, the level varies on both sides: it is more a question of generation than of nationality.\nAnd at ArianeGroup, nobody is a native speaker of the official language.\n\nCONTENT: Who decides?\n- The French manager decides quickly, says what to do… and may change the decision. Seen from Germany: unstable.\n- The German manager asks « What do you propose? », consults… and then the decision is final. Seen from France: a boss who doesn’t decide.\nSame goal: a good decision. Two different timings.\n\nSCENE: 3. LIFTOFF – The First Day\nThree weeks later. 7:00 a.m.\n9:30 a.m.\n11:00 a.m.\n\nSCENE: 4. ASCENT – Lost in Translation\nAfter lunch\n\nTrue or false: in France, a contract is only valid if you write « lu et approuvé » by hand.\nTrue\n*False\n> False. The French Court of Cassation ruled as early as 1993 that this mention is a formality with no legal effect: the signature is enough. And yet everybody still asks for it.\n\nWhen are French and German teams most likely to be at their desks at the same time?\n7:00 – 9:00\n*9:30 – 11:00\n12:00 – 13:30\n17:00 – 19:00\n> In Germany, people often start between 6:30 and 8:00, have a 30-minute lunch from 11:00, and offices can be empty from 16:00 (part-time often means a free afternoon). In France, people start around 9:00-9:30, have a one-hour lunch around 12:30 and stay until 18:00-19:00. Your shared windows: about 9:30-11:00 and 13:30-16:00.\n\nWho thinks the other side is hiding information?\nThe French\nThe Germans\n*Both\nNobody\n> Both. The Germans tend to protect their information; the French simply don’t think of sharing it. It is rarely retention: it is forgetting. The reflex to build: « Who on the other side needs this? »\n\nSCENE: 5. MAX Q – The Big Meeting\nThe weekly team meeting\n\nSCENE: 6. ORBIT INSERTION – The Conclusion\n\nFor you, good Franco-German cooperation is above all…\nListening before deciding\nChoosing our working language together\nSharing information as a reflex\nRespecting each other’s rhythm\n\nWhat do you value most in your colleagues from across the border?\nTheir expertise\nTheir reliability\nTheir agility\nTheir different way of seeing the same problem\n\nTomorrow, with my mixed team, I will…\nAsk which language people prefer for our meetings\nAsk myself « who on the other side needs this? » before sending\nSchedule our meetings in our shared time window\nAgree on how we decide, before deciding\n\nWhat makes Ariane 6 fly?\nThe French lower stage\nThe German upper stage\nA very long meeting\n*Both stages, letting go at the same second\n\nCONTENT: Two Stages, One Rocket\nWe are not that different. And it’s exactly that bit that makes it fly.\nThank you! Danke! Merci!";
+const DEFAULT_TEXT = "How many people work at ArianeGroup?\nAbout 2,000\n*About 8,000\nAbout 15,000\nAbout 30,000\n> About 8,000 people, in France and in Germany.\n\nHow many of them are based in Germany?\nAbout 300\n*About 1,200\nAbout 4,000\nAbout 6,000\n> About 1,200 people, roughly 15 % of the group (85 % in France).\n\nSCENE: 2. IGNITION – The Interview\nRight here. Right now.\n\nCONTENT: Two toolboxes, one rocket\n- Often seen on the French side: agility, speed, improvisation. A solution in five minutes.\n- Often seen on the German side: planning, structure, reliability. A plan that holds.\n- Neither works alone: a plan needs a plan B, and a plan B needs a plan.\nFrench agility + German rigour: what makes mixed teams strong.\n\nCONTENT: English: who speaks it best?\n- EF English Proficiency Index 2025: Germany ranks #4 worldwide (very high level), France #38 (moderate level).\n- On the ground, the level varies on both sides: it is more a question of generation than of nationality.\nAnd at ArianeGroup, few people are native speakers of the official language.\n\nCONTENT: Who decides?\n- The French manager decides quickly, says what to do… and may change the decision. Seen from Germany: unstable.\n- The German manager asks “What do you propose?”, consults… and then the decision is final. Seen from France: a boss who doesn’t decide.\nSame goal: a good decision. Two different timings.\n\nSCENE: 3. LIFTOFF – The First Day\nThree weeks later. 7:00 a.m.\n9:30 a.m.\n11:00 a.m.\n\nSCENE: 4. ASCENT – Lost in Translation\nAfter lunch\n\nWhen are French and German teams most likely to be at their desks at the same time?\n7:00 – 9:00\n*9:30 – 11:00\n12:00 – 13:30\n17:00 – 19:00\n> In Germany, people often start between 6:30 and 8:00, have a 30-minute lunch from 11:00, and offices can be empty from 16:00 (part-time often means a free afternoon). In France, people start around 9:00-9:30, have a one-hour lunch around 12:30 and stay until 18:00-19:00. Your shared windows: about 9:30-11:00 and 13:30-16:00.\n\nAnd if we add Kourou? When can France, Germany and Kourou all meet (Paris / Munich time)?\n9:30 – 11:00\n*13:30 – 16:00\n17:00 – 19:00\nNever\n> In winter, Kourou is 4 hours behind Paris and Munich (5 hours in summer). Base working hours there are about 8:00 to 17:15, so Kourou starts around noon European time. The only window for all three: about 13:30-16:00 in Paris and Munich (9:30-12:00 in Kourou, in winter). Two and a half hours a day.\n\nWho thinks the other side is hiding information?\nThe French\nThe Germans\n*Both\nNobody\n> Both. Export control slows sharing on the French side, the Betriebsrat on the German side. And the French often simply don’t think of sharing: it is rarely retention, it is forgetting. The reflex to build: “Who on the other side needs this?”\n\nSCENE: 5. MAX Q – The Big Meeting\nThe weekly team meeting\n\nSCENE: 6. ORBIT INSERTION – The Conclusion\n\nFor you, good Franco-German cooperation is above all…\nListening before deciding\nChoosing our working language together\nSharing information as a reflex\nRespecting each other’s rhythm\n\nWhat do you value most in your colleagues from across the border?\nTheir expertise\nTheir reliability\nTheir agility\nTheir different way of seeing the same problem\n\nTomorrow, with my mixed team, I will…\nAsk which language people prefer for our meetings\nAsk myself “who on the other side needs this?” before sending\nSchedule our meetings in our shared time window\nAgree on how we decide, before deciding\n\nWhat makes Ariane 6 fly?\nThe French lower stage\nThe German upper stage\nA very long meeting\n*Both stages, letting go at the same second\n\nCONTENT: Two Stages, One Rocket\nWe are not that different. And it’s exactly that bit that makes it fly.\nThank you! Danke! Merci!";
 
 const CSS = `
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
