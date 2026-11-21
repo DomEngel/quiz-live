@@ -65,7 +65,7 @@ function stateFor(g, cl) {
   const s = { code: g.code, title: g.title, phase: g.phase, i: g.q, steps: g.questions.length, total: g.nq, n: g.players.size,
     q: g.questions.slice(0, g.q + 1).filter(x => x.t === 'q').length - 1 };
   const more = Q && g.phase === 'slide' && Q.t === 'scene' && g.step < Q.subs.length - 1;
-  if (Q && g.phase === 'slide') s.slide = Q.t === 'scene' ? { t: 'scene', title: Q.title, sub: Q.subs[g.step] || '' } : { t: 'info', title: Q.title, lines: Q.lines };
+  if (Q && g.phase === 'slide') s.slide = Q.t === 'scene' ? { t: 'scene', title: Q.title, sub: Q.subs[g.step] || '' } : { t: 'info', title: Q.title, lines: Q.lines, fin: !g.questions[g.q + 1] }; // fin = dernier écran du déroulé
   const staff = cl.role === 'host' || cl.role === 'screen'; // animateur ou écran de projection
   if (cl.role === 'host') {
     s.view = g.view;
@@ -455,6 +455,41 @@ body.host:not(.screen) .foot.endfoot{position:static;margin:0;padding:0;backgrou
 body.host .scene h1{font-size:clamp(64px,8.5vw,128px)}
 .rule{width:140px;height:2px;background:linear-gradient(90deg,#f1fcff,var(--halo) 60%,rgba(127,220,255,0));box-shadow:0 0 16px rgba(127,220,255,.9)}
 body.host .rule{width:260px;height:3px}
+.fin{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;text-align:center;padding:2vh 0}
+.fin .fr{height:34vh;max-height:320px;width:auto;flex:none;overflow:visible;filter:drop-shadow(0 0 8px rgba(127,220,255,.4))}
+.fr-ol,.fr-fair,.fr-noz{fill:none;stroke:var(--halo);stroke-width:1.4;stroke-linejoin:round}
+.fr-fair{fill:#00162b}.fr-noz{fill:#00162b}
+.fl-o{fill:rgba(127,220,255,.35);stroke:var(--halo);stroke-width:1.2;stroke-linejoin:round}
+.fl-i{fill:#f1fcff;opacity:.9}
+.fr-join{stroke:#fff;stroke-width:2;stroke-linecap:round;opacity:0}
+.fr-flame,.fr-join{transform-box:view-box}
+.fr-flame{transform-origin:50px 289px}.fr-join{transform-origin:50px 171px}
+.ftx{display:flex;flex-direction:column;align-items:center;gap:20px;min-width:0;max-width:100%}
+.fin h1{font-size:56px;white-space:nowrap;line-height:.95;text-shadow:0 0 30px rgba(127,220,255,.45),0 0 6px rgba(127,220,255,.35)}
+.fin .fmsg{font-size:20px;line-height:1.45;font-weight:600;max-width:30ch}
+.fin .fthx{font-family:var(--disp);font-weight:600;font-size:24px;letter-spacing:.12em;text-transform:uppercase;color:var(--halo);text-shadow:0 0 12px rgba(127,220,255,.4)}
+body.host .fin{flex-direction:row;text-align:left;gap:6vw}
+body.host .fin .fr{height:min(70vh,760px);max-height:none}
+body.host .ftx{align-items:flex-start;gap:clamp(20px,2.2vw,40px);max-width:58vw}
+body.host .fin h1{font-size:clamp(64px,8.5vw,150px)}
+body.host .fin .fmsg{font-size:clamp(24px,2.4vw,46px);max-width:24ch}
+body.host .fin .fthx{font-size:clamp(28px,3vw,58px)}
+@media (prefers-reduced-motion:no-preference){
+.fin.play .fr-up{animation:frup 1.2s cubic-bezier(.2,.75,.25,1) .2s both}
+.fin.play .fr-lo{animation:frlo 1.2s cubic-bezier(.2,.75,.25,1) .2s both}
+.fin.play .fr-join{animation:frjoin 1.3s ease-out 1.35s both}
+.fin.play .fr{animation:frglow 1.8s ease-out 1.35s both}
+.fin.play .fr-flame{animation:frfl 2s ease-out 1.6s both}
+.fin.play .ftx>*{animation:frtx .7s ease both}
+.fin.play .ftx>:nth-child(1){animation-delay:1.5s}.fin.play .ftx>:nth-child(2){animation-delay:1.7s}
+.fin.play .ftx>:nth-child(3){animation-delay:2s}.fin.play .ftx>:nth-child(4){animation-delay:2.5s}
+}
+@keyframes frup{from{transform:translateY(-80px);opacity:0}to{transform:none;opacity:1}}
+@keyframes frlo{from{transform:translateY(100px);opacity:0}to{transform:none;opacity:1}}
+@keyframes frjoin{0%{opacity:0;transform:scaleX(.2)}20%{opacity:1;transform:scaleX(1.7)}100%{opacity:0;transform:scaleX(1)}}
+@keyframes frglow{0%{filter:drop-shadow(0 0 8px rgba(127,220,255,.4))}25%{filter:drop-shadow(0 0 26px rgba(170,235,255,.95))}100%{filter:drop-shadow(0 0 8px rgba(127,220,255,.4))}}
+@keyframes frfl{0%{transform:scaleY(0);opacity:0}14%{transform:scaleY(1.35);opacity:1}28%{transform:scaleY(.85)}42%{transform:scaleY(1.18)}58%{transform:scaleY(.92)}76%{transform:scaleY(1.06)}100%{transform:none;opacity:1}}
+@keyframes frtx{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .scene{gap:0}
 .scene h1.nm{white-space:nowrap;margin-top:8px}
 .scene .rule{margin-top:22px}
@@ -723,7 +758,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       const w = h.scrollWidth, avail = h.clientWidth;
       if (avail > 0 && w > avail) h.style.fontSize = Math.floor(parseFloat(getComputedStyle(h).fontSize) * avail / w * 0.98) + 'px';
     });
-    document.querySelectorAll('.scene h1.nm').forEach(h => {
+    document.querySelectorAll('.scene h1.nm, .fin h1.fit').forEach(h => {
       h.style.fontSize = '';
       const avail = h.parentElement.clientWidth, w = h.scrollWidth;
       if (avail > 0 && w > avail) h.style.fontSize = Math.floor(parseFloat(getComputedStyle(h).fontSize) * avail / w * 0.99) + 'px';
@@ -740,6 +775,13 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       if (!hd) return '<div class="scene"><h1>' + esc(d.title) + '</h1><div class="rule"></div>' + sub + '</div>';
       const play = sceneSeen !== d.title; sceneSeen = d.title; // l’animation ne se joue qu’à l’apparition de la scène, pas à chaque indication
       return '<div class="scene' + (play ? ' play' : '') + '"><p class="ph">' + (hd.ic || '') + '<span>' + esc(hd.n) + ' · ' + esc(hd.ph) + '</span></p><h1 class="nm">' + esc(hd.name) + '</h1><div class="rule"></div>' + sub + '</div>';
+    }
+    if (d.t === 'info' && d.fin) { // écran final : la fusée franco-allemande se rassemble, puis se fige
+      const L = (d.lines || []).map(l => l.replace(/^[-•]\s*/, '')), thx = L.length > 1 ? L.pop() : '';
+      const k = 'fin|' + d.title, play = sceneSeen !== k; sceneSeen = k;
+      return '<div class="fin' + (play ? ' play' : '') + '"><svg class="fr" viewBox="0 0 100 340" aria-hidden="true"><g class="fr-lo"><g class="fr-flame"><path class="fl-o" d="M38 290 C40 311 46 325 50 337 C54 325 60 311 62 290 Z"/><path class="fl-i" d="M43.5 290 C45 304 48 313 50 320 C52 313 55 304 56.5 290 Z"/></g><path class="fr-noz" d="M41 270 L37 289 H63 L59 270 Z"/><rect x="32" y="171" width="12.2" height="99" fill="#0055A4"/><rect x="44" y="171" width="12.2" height="99" fill="#FFFFFF"/><rect x="56" y="171" width="12" height="99" fill="#EF4135"/><rect class="fr-ol" x="32" y="171" width="36" height="99"/></g><g class="fr-up"><path class="fr-fair" d="M50 8 C61 20 68 38 68 60 V72 H32 V60 C32 38 39 20 50 8 Z"/><rect x="32" y="72" width="36" height="33.3" fill="#000000"/><rect x="32" y="105" width="36" height="33.3" fill="#DD0000"/><rect x="32" y="138" width="36" height="33" fill="#FFCE00"/><rect class="fr-ol" x="32" y="72" width="36" height="99"/></g><line class="fr-join" x1="24" y1="171" x2="76" y2="171"/></svg><div class="ftx">' +
+        (d.title ? '<h1 class="fit">' + esc(d.title).replace(/,\s*/, ',<br>') + '</h1>' : '') + '<div class="rule"></div>' +
+        L.map(l => '<p class="fmsg">' + esc(l) + '</p>').join('') + (thx ? '<p class="fthx">' + esc(thx) + '</p>' : '') + '</div></div>';
     }
     let h = '', ul = false;
     (d.lines || []).forEach(l => {
@@ -909,7 +951,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     const me = S && S.me;
     document.body.classList.toggle('longx', !!(S && S.phase === 'reveal' && S.expl && S.expl.length > 240));
     const key = [isHost, !!sess, S ? S.phase : '-', S ? S.i + ':' + S.q + ':' + (S.slide ? S.slide.sub : '') + ':' + S.back : '', me ? me.ans : '', err].join('|');
-    if (key !== view) { view = key; if (!(S && S.phase === 'slide' && S.slide && S.slide.t === 'scene')) sceneSeen = ''; isHost ? buildHost() : buildPlayer(); requestAnimationFrame(() => { fitScene(); flights(); patch(); }); }
+    if (key !== view) { view = key; if (!(S && S.phase === 'slide' && S.slide && (S.slide.t === 'scene' || S.slide.fin))) sceneSeen = ''; isHost ? buildHost() : buildPlayer(); requestAnimationFrame(() => { fitScene(); flights(); patch(); }); }
     else patch();
   }
 
@@ -922,6 +964,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (ph === 'question') { S.dur = 30000; S.rem = 19000; if (isHost) S.counts = [5, 3, 29, 4]; else S.me = { name: 'Camille', ans: null }; }
     if (ph === 'reveal') { S.counts = [5, 3, 29, 4]; S.correct = Q.c; S.expl = Q.e; if (!isHost) S.me = { name: 'Camille', ans: 2 }; }
     if (ph === 'scene') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'scene', title: '4. ASCENT – Lost in Translation', sub: 'After lunch' }; S.part = [1, 2]; S.back = true; }
+    if (ph === 'final') { S.phase = 'slide'; S.next = 'end'; S.back = true; S.slide = { t: 'info', fin: true, title: 'Two Stages, One Rocket', lines: ['We are not that different. And it’s exactly that bit that makes it fly.', 'Thank you! Danke! Merci!'] }; }
     if (ph === 'info') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'info', title: 'Focus on stereotypes', lines: ['A stereotype is a simplified belief applied to a whole group.', '- It saves time, but it distorts judgement', '- Everyone has them, often without knowing it', '- Spotting them is the first step to getting rid of them'] }; }
     if (ph === 'end') S.recap = DEFAULT_QUIZ.map((x, i) => ({ q: x.q, n: 44 - i, good: x.c < 0 ? null : 30 - 4 * i, poll: x.c < 0, c: x.c, o: x.o.map((t, j) => ({ t, n: [9, 21, 6, 8][j] || 1 })) }));
     deadline = Date.now() + (S.rem || 0);
