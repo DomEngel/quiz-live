@@ -546,19 +546,20 @@ body.host .body p,body.host .body li{font-size:clamp(20px,2vw,30px)}
 a.btn{text-decoration:none}
 .sub.cue{display:block;font-size:28px;line-height:1.15;letter-spacing:.14em;color:#d4f6ff;text-shadow:0 0 16px rgba(127,220,255,.6),0 0 4px rgba(127,220,255,.45);font-variant-numeric:tabular-nums;animation:none}
 body.host .sub.cue{font-size:clamp(36px,3.9vw,74px)}
-.cue .tw{white-space:nowrap}
+.cue .tw{white-space:nowrap;transition:opacity .45s ease}
+.cue .tw.wait{opacity:0}
 .cue .ck{width:1em;height:1em;vertical-align:-.14em;margin-right:.4em;fill:none;stroke:var(--halo);stroke-width:1.8;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(127,220,255,.6))}
-.cue .tm,.cue .ct{display:inline-block;color:#fff}
+.cue .tm,.cue .ct{color:#fff}
+.scene .shd{position:relative}
+.scene .shd>.sub{position:absolute;left:0;right:0;top:100%}
+.scene{padding-bottom:calc(6vh + 90px)}
+body.host .scene{padding-bottom:calc(6vh + 150px)}
 @media (prefers-reduced-motion:no-preference){
-.cue.in{animation:cuein .9s cubic-bezier(.2,.7,.2,1) var(--cd,0ms) both}
-.cue .tick{animation:ctick .26s ease-out}
-.cue .tm.lock{animation:cflash 1.1s ease-out}
-.cue.lock .ck{animation:ckpulse 1.1s ease-out}
+.cue.in{animation:cuein .7s cubic-bezier(.2,.7,.25,1) var(--cd,0ms) both;transform-origin:0 50%}
+.cue .flk{animation:cflk .35s ease-out}
 }
-@keyframes cuein{from{opacity:0;filter:blur(12px);letter-spacing:.5em}to{opacity:1;filter:none;letter-spacing:.14em}}
-@keyframes ctick{from{transform:translateY(-.4em);opacity:.2}to{transform:none;opacity:1}}
-@keyframes cflash{25%{text-shadow:0 0 34px rgba(190,240,255,1),0 0 10px #fff}}
-@keyframes ckpulse{25%{transform:scale(1.18);filter:drop-shadow(0 0 16px rgba(190,240,255,1))}}
+@keyframes cuein{from{opacity:0;transform:scale(1.12)}to{opacity:1;transform:none}}
+@keyframes cflk{from{opacity:.25}to{opacity:1}}
 .ctrl{display:none}
 body.host .ctrl{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}
 .ctrl p{margin:6px 0 14px}
@@ -750,6 +751,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     out += esc(text.slice(last));
     cueMem = { scene, min: timeMin != null ? timeMin : prev };
     const go = fresh && !REDUCE;
+    if (go && /class="ct" data-n="([2-9]|1[0-2])"/.test(out)) out = out.replace(/class="tw"/g, 'class="tw wait"'); // l’heure reste cachée pendant le compte des semaines
     return '<div class="sub cue' + (go ? ' in" data-go="1" style="--cd:' + (first ? 1100 : 0) + 'ms' : '') + '"><span class="cx">' + out.replace(/\n/g, '<br>') + '</span></div>';
   }
   function setClock(el, min) {
@@ -762,32 +764,36 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       const tm = cue.querySelector('.tm'); if (tm) setClock(cue, +tm.dataset.to);
       if (!cue.dataset.go) return; delete cue.dataset.go;
       const d0 = parseInt(getComputedStyle(cue).getPropertyValue('--cd')) || 0;
-      const bump = el => { el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick'); };
-      let t = d0 + 350;
-      cue.querySelectorAll('.ct').forEach(ct => { // 1… 2… 3 weeks later
-        const n = +ct.dataset.n; if (!(n > 1 && n <= 12)) return;
-        const cu = ct.nextElementSibling && ct.nextElementSibling.classList.contains('cu') ? ct.nextElementSibling : null;
-        const show = k => { if (!ct.isConnected) return; ct.textContent = +ct.dataset.w ? numWord(k, +ct.dataset.cap) : String(k); if (cu) cu.textContent = cu.dataset.u + (k > 1 ? 's' : ''); bump(ct); };
+      const flick = el => { el.classList.remove('flk'); void el.offsetWidth; el.classList.add('flk'); };
+      const tws = [...cue.querySelectorAll('.tw')];
+      let t = d0 + 700; // laisser l’apparition se terminer
+      const cts = [...cue.querySelectorAll('.ct')].filter(ct => +ct.dataset.n > 1 && +ct.dataset.n <= 12);
+      if (cts.length) tws.forEach(w => w.classList.add('wait')); // l’heure attend la fin du compte des semaines
+      cts.forEach(ct => { // One week… Two weeks… Three weeks later
+        const n = +ct.dataset.n, cu = ct.nextElementSibling && ct.nextElementSibling.classList.contains('cu') ? ct.nextElementSibling : null;
+        const show = k => { if (!ct.isConnected) return; ct.textContent = +ct.dataset.w ? numWord(k, +ct.dataset.cap) : String(k); if (cu) cu.textContent = cu.dataset.u + (k > 1 ? 's' : ''); };
         show(1);
-        for (let k = 2; k <= n; k++) setTimeout(() => show(k), t + (k - 1) * 380);
-        t += (n - 1) * 380 + 250;
+        for (let k = 2; k <= n; k++) setTimeout(() => { show(k); flick(ct); }, t + (k - 2) * 600 + 300);
+        t += (n - 1) * 600 + 700;
       });
-      cue.querySelectorAll('.tm').forEach(el => { // l’heure défile jusqu’à l’heure de la scène
-        const from = +el.dataset.from, to = +el.dataset.to, ap = +el.dataset.ap, dur = Math.min(2200, 900 + Math.abs(to - from) * 6);
+      tws.forEach(w => { // puis l’heure apparaît et défile jusqu’à l’heure de la scène
+        const el = w.querySelector('.tm'), from = +el.dataset.from, to = +el.dataset.to, ap = +el.dataset.ap, dur = Math.min(2000, 900 + Math.abs(to - from) * 6);
         el.textContent = fmtTime(from, ap); setClock(cue, from);
         setTimeout(() => {
-          const t0 = performance.now(); let shown = '';
+          w.classList.remove('wait');
+          const t0 = performance.now() + 350; let shown = '';
           const fr = now => {
             if (!el.isConnected) return;
-            const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3), cur = Math.round(from + (to - from) * e);
+            const k = Math.max(0, Math.min(1, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3), cur = Math.round(from + (to - from) * e);
             const txt = fmtTime(cur, ap); if (txt !== shown) { el.textContent = shown = txt; setClock(cue, cur); }
-            if (k < 1) requestAnimationFrame(fr); else { el.textContent = fmtTime(to, ap); setClock(cue, to); el.classList.add('lock'); cue.classList.add('lock'); }
+            if (k < 1) requestAnimationFrame(fr); else { el.textContent = fmtTime(to, ap); setClock(cue, to); }
           };
           requestAnimationFrame(fr);
-        }, t);
+        }, cts.length ? t : d0 + 500);
       });
     });
   }
+
   function flights() { // Ascent et Orbit : le lanceur suit une trajectoire, puis se fige à sa place d’origine
     if (REDUCE) return;
     document.querySelectorAll('.scene.play .pi[data-fly]').forEach(svg => {
@@ -858,8 +864,8 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       const hd = sceneHead(d.title);
       const play = sceneSeen !== d.title; sceneSeen = d.title; // l’animation ne se joue qu’à l’apparition de la scène, pas à chaque indication
       const sub = d.sub ? cueHTML(d.title, d.sub, play && hd) : '';
-      if (!hd) return '<div class="scene"><h1>' + esc(d.title) + '</h1><div class="rule"></div>' + sub + '</div>';
-      return '<div class="scene' + (play ? ' play' : '') + '"><p class="ph">' + (hd.ic || '') + '<span>' + esc(hd.n) + ' · ' + esc(hd.ph) + '</span></p><h1 class="nm">' + esc(hd.name) + '</h1><div class="rule"></div>' + sub + '</div>';
+      if (!hd) return '<div class="scene"><div class="shd"><h1>' + esc(d.title) + '</h1><div class="rule"></div>' + sub + '</div></div>';
+      return '<div class="scene' + (play ? ' play' : '') + '"><div class="shd"><p class="ph">' + (hd.ic || '') + '<span>' + esc(hd.n) + ' · ' + esc(hd.ph) + '</span></p><h1 class="nm">' + esc(hd.name) + '</h1><div class="rule"></div>' + sub + '</div></div>';
     }
     if (d.t === 'info' && d.fin) { // écran final : la fusée franco-allemande se rassemble, puis se fige
       const L = (d.lines || []).map(l => l.replace(/^[-•]\s*/, '')), thx = L.length > 1 ? L.pop() : '';
