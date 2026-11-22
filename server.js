@@ -546,8 +546,12 @@ body.host .body p,body.host .body li{font-size:clamp(20px,2vw,30px)}
 a.btn{text-decoration:none}
 .sub.cue{display:block;font-size:28px;line-height:1.15;letter-spacing:.14em;color:#d4f6ff;text-shadow:0 0 16px rgba(127,220,255,.6),0 0 4px rgba(127,220,255,.45);font-variant-numeric:tabular-nums;animation:none}
 body.host .sub.cue{font-size:clamp(36px,3.9vw,74px)}
-.cue .tw{white-space:nowrap;transition:opacity .45s ease}
-.cue .tw.wait{opacity:0}
+.cue .tw{white-space:nowrap}
+.cue .cl{display:inline-grid;vertical-align:top}
+.cue .ca,.cue .cb{grid-area:1/1;transition:opacity .45s ease}
+.cue .cb{opacity:0}
+.cue.sw .ca{opacity:0}
+.cue.sw .cb{opacity:1}
 .cue .ck{width:1em;height:1em;vertical-align:-.14em;margin-right:.4em;fill:none;stroke:var(--halo);stroke-width:1.8;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(127,220,255,.6))}
 .cue .tm,.cue .ct{color:#fff}
 .scene .shd{position:relative}
@@ -733,26 +737,33 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   function cueHTML(scene, text, first) {
     const key = scene + '|' + text, fresh = cueKey !== key; cueKey = key;
     const re = /(\b\d{1,2}[:h]\d{2}(?:\s*[ap]\.?\s?m\.?)?)|(\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d{1,2})\b)(\s+)(days?|weeks?|months?|years?)\b/gi;
-    let out = '', last = 0, mm, timeMin = null;
+    let out = '', outA = '', outB = '', last = 0, mm, timeMin = null, counting = false;
     const prev = cueMem.scene === scene ? cueMem.min : null;
     while ((mm = re.exec(text))) {
-      out += esc(text.slice(last, mm.index)); last = re.lastIndex;
+      const gap = esc(text.slice(last, mm.index)); out += gap; outA += gap; last = re.lastIndex;
       if (mm[1]) {
         const t = /(\d{1,2})[:h](\d{2})(?:\s*([ap])(\.)?)?/i.exec(mm[1]);
         let h = +t[1] % (t[3] ? 12 : 24); if (t[3] && /p/i.test(t[3])) h += 12;
         const to = h * 60 + +t[2], ap = t[3] ? (t[4] ? 1 : 2) : 0; timeMin = to;
         const from = prev != null && prev !== to ? prev : to - 90;
-        out += '<span class="tw">' + CLOCK + '<span class="tm" data-to="' + to + '" data-from="' + from + '" data-ap="' + ap + '">' + esc(fmtTime(to, ap)) + '</span></span>';
+        const tw = '<span class="tw">' + CLOCK + '<span class="tm" data-to="' + to + '" data-from="' + from + '" data-ap="' + ap + '">' + esc(fmtTime(to, ap)) + '</span></span>';
+        out += tw; outB += tw;
       } else {
         const w = mm[2], n = /^\d/.test(w) ? +w : NUMW.indexOf(w.toLowerCase());
-        out += '<span class="ct" data-n="' + n + '" data-w="' + (/^\d/.test(w) ? 0 : 1) + '" data-cap="' + (w[0] !== w[0].toLowerCase() ? 1 : 0) + '">' + esc(w) + '</span>' + esc(mm[3]) + '<span class="cu" data-u="' + esc(mm[4].replace(/s$/i, '')) + '">' + esc(mm[4]) + '</span>';
+        if (n > 1 && n <= 12) counting = true;
+        const ctx = '<span class="ct" data-n="' + n + '" data-w="' + (/^\d/.test(w) ? 0 : 1) + '" data-cap="' + (w[0] !== w[0].toLowerCase() ? 1 : 0) + '">' + esc(w) + '</span>' + esc(mm[3]) + '<span class="cu" data-u="' + esc(mm[4].replace(/s$/i, '')) + '">' + esc(mm[4]) + '</span>';
+        out += ctx; outA += ctx;
       }
     }
-    out += esc(text.slice(last));
+    const tail = esc(text.slice(last)); out += tail; outA += tail;
     cueMem = { scene, min: timeMin != null ? timeMin : prev };
-    const go = fresh && !REDUCE;
-    if (go && /class="ct" data-n="([2-9]|1[0-2])"/.test(out)) out = out.replace(/class="tw"/g, 'class="tw wait"'); // l’heure reste cachée pendant le compte des semaines
-    return '<div class="sub cue' + (go ? ' in" data-go="1" style="--cd:' + (first ? 1100 : 0) + 'ms' : '') + '"><span class="cx">' + out.replace(/\n/g, '<br>') + '</span></div>';
+    const go = fresh && !REDUCE, br = x => x.trim().replace(/\n/g, '<br>');
+    if (counting && timeMin != null) { // « Three weeks later. 7:00 a.m. » : d’abord les semaines seules, puis elles sont remplacées par l’heure
+      if (!go) return '<div class="sub cue"><span class="cx">' + br(outB) + '</span></div>';
+      return '<div class="sub cue swap in" data-go="1" style="--cd:' + (first ? 1100 : 0) + 'ms"><span class="cl"><span class="ca">' + br(outA) + '</span><span class="cb">' + br(outB) + '</span></span></div>';
+    }
+    const cont = go && timeMin != null && prev != null && !counting && !/\S/.test(out.replace(/<span class="tw">[\s\S]*?<\/span><\/span>/g, '').replace(/<[^>]+>/g, '')); // heure seule qui suit une heure : elle continue sans réapparaître
+    return '<div class="sub cue' + (go ? (cont ? ' cont' : ' in') + '" data-go="1" style="--cd:' + (first ? 1100 : 0) + 'ms' : '') + '"><span class="cx">' + br(out) + '</span></div>';
   }
   function setClock(el, min) {
     const ck = el.querySelector('.ck'); if (!ck) return;
@@ -768,7 +779,6 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       const tws = [...cue.querySelectorAll('.tw')];
       let t = d0 + 700; // laisser l’apparition se terminer
       const cts = [...cue.querySelectorAll('.ct')].filter(ct => +ct.dataset.n > 1 && +ct.dataset.n <= 12);
-      if (cts.length) tws.forEach(w => w.classList.add('wait')); // l’heure attend la fin du compte des semaines
       cts.forEach(ct => { // One week… Two weeks… Three weeks later
         const n = +ct.dataset.n, cu = ct.nextElementSibling && ct.nextElementSibling.classList.contains('cu') ? ct.nextElementSibling : null;
         const show = k => { if (!ct.isConnected) return; ct.textContent = +ct.dataset.w ? numWord(k, +ct.dataset.cap) : String(k); if (cu) cu.textContent = cu.dataset.u + (k > 1 ? 's' : ''); };
@@ -780,8 +790,8 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
         const el = w.querySelector('.tm'), from = +el.dataset.from, to = +el.dataset.to, ap = +el.dataset.ap, dur = Math.min(2000, 900 + Math.abs(to - from) * 6);
         el.textContent = fmtTime(from, ap); setClock(cue, from);
         setTimeout(() => {
-          w.classList.remove('wait');
-          const t0 = performance.now() + 350; let shown = '';
+          cue.classList.add('sw'); // les semaines s’effacent, l’heure prend leur place
+          const t0 = performance.now() + (cue.classList.contains('swap') ? 350 : 0); let shown = '';
           const fr = now => {
             if (!el.isConnected) return;
             const k = Math.max(0, Math.min(1, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3), cur = Math.round(from + (to - from) * e);
@@ -789,7 +799,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
             if (k < 1) requestAnimationFrame(fr); else { el.textContent = fmtTime(to, ap); setClock(cue, to); }
           };
           requestAnimationFrame(fr);
-        }, cts.length ? t : d0 + 500);
+        }, cts.length ? t : cue.classList.contains('cont') ? 120 : d0 + 500);
       });
     });
   }
