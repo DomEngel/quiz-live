@@ -503,6 +503,8 @@ body.host .scene h1.nm{margin-top:clamp(8px,1.15vw,22px)}
 body.host .scene .rule{margin-top:clamp(22px,1.8vw,34px)}
 body.host .scene .sub{margin-top:clamp(22px,1.6vw,30px)}
 .scene.play .ph span{animation:phtxt .6s ease .15s both}
+.scene.play h1.nm{animation:nmin .6s ease .45s both}
+@keyframes nmin{from{opacity:0}to{opacity:1}}
 @keyframes phtxt{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
 @keyframes phpeak{0%{filter:drop-shadow(0 0 0 rgba(127,220,255,0))}35%{filter:drop-shadow(0 0 calc(var(--g)*3) rgba(160,235,255,.95))}100%{filter:drop-shadow(0 0 var(--g) rgba(127,220,255,.55))}}
 .pi .ig-fl{transform-box:view-box;transform-origin:24px 36.5px}
@@ -598,7 +600,7 @@ body.host .lobby{grid-template-columns:auto 1fr;gap:48px}
 }
 .wait{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;border:2px solid rgba(127,220,255,.2);border-top-color:var(--halo);box-shadow:0 0 22px rgba(127,220,255,.4);animation:spin 1.6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.wait{animation:none}.fill,.prg{transition:none}}
+@media (prefers-reduced-motion:reduce){.wait{animation:none}.scene.play h1.nm,.scene.play .ph span{animation:none}.fill,.prg{transition:none}}
 `;
 
 function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
@@ -726,6 +728,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   // Indications de temps : l’heure défile jusqu’à la bonne heure, les semaines se comptent, puis tout se fige
   const NUMW = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
   let cueKey = '', cueMem = { scene: '', min: null };
+  const ICON_END = { IGNITION: 2200, LIFTOFF: 2350, ASCENT: 2650, 'MAX Q': 2300, 'ORBIT INSERTION': 3300 }; // fin de l’animation de chaque icône (ms)
   const fmtTime = (min, ap) => {
     min = ((Math.round(min) % 1440) + 1440) % 1440;
     const h = Math.floor(min / 60), m = String(min % 60).padStart(2, '0');
@@ -760,10 +763,10 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     const go = fresh && !REDUCE, br = x => x.trim().replace(/\n/g, '<br>');
     if (counting && timeMin != null) { // « Three weeks later. 7:00 a.m. » : d’abord les semaines seules, puis elles sont remplacées par l’heure
       if (!go) return '<div class="sub cue"><span class="cx">' + br(outB) + '</span></div>';
-      return '<div class="sub cue swap in" data-go="1" style="--cd:' + (first ? 1100 : 0) + 'ms"><span class="cl"><span class="ca">' + br(outA) + '</span><span class="cb">' + br(outB) + '</span></span></div>';
+      return '<div class="sub cue swap in" data-go="1" style="--cd:' + (+first || 0) + 'ms"><span class="cl"><span class="ca">' + br(outA) + '</span><span class="cb">' + br(outB) + '</span></span></div>';
     }
     const cont = go && timeMin != null && prev != null && !counting && !/\S/.test(out.replace(/<span class="tw">[\s\S]*?<\/span><\/span>/g, '').replace(/<[^>]+>/g, '')); // heure seule qui suit une heure : elle continue sans réapparaître
-    return '<div class="sub cue' + (go ? (cont ? ' cont' : ' in') + '" data-go="1" style="--cd:' + (first ? 1100 : 0) + 'ms' : '') + '"><span class="cx">' + br(out) + '</span></div>';
+    return '<div class="sub cue' + (go ? (cont ? ' cont' : ' in') + '" data-go="1" style="--cd:' + (+first || 0) + 'ms' : '') + '"><span class="cx">' + br(out) + '</span></div>';
   }
   function setClock(el, min) {
     const ck = el.querySelector('.ck'); if (!ck) return;
@@ -873,7 +876,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (d.t === 'scene') {
       const hd = sceneHead(d.title);
       const play = sceneSeen !== d.title; sceneSeen = d.title; // l’animation ne se joue qu’à l’apparition de la scène, pas à chaque indication
-      const sub = d.sub ? cueHTML(d.title, d.sub, play && hd) : '';
+      const sub = d.sub ? cueHTML(d.title, d.sub, play && hd ? (ICON_END[hd.ph] || 800) + 400 : 0) : ''; // l’indication n’arrive qu’une fois l’icône figée
       if (!hd) return '<div class="scene"><div class="shd"><h1>' + esc(d.title) + '</h1><div class="rule"></div>' + sub + '</div></div>';
       return '<div class="scene' + (play ? ' play' : '') + '"><div class="shd"><p class="ph">' + (hd.ic || '') + '<span>' + esc(hd.n) + ' · ' + esc(hd.ph) + '</span></p><h1 class="nm">' + esc(hd.name) + '</h1><div class="rule"></div>' + sub + '</div></div>';
     }
