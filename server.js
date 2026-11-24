@@ -84,7 +84,8 @@ function stateFor(g, cl) {
     const c = counts(g);
     s.answered = c.reduce((a, b) => a + b, 0);
     if (g.phase === 'question') {
-      if (Q.c >= 0) { s.rem = Math.max(0, g.startedAt + g.dur - Date.now()); s.dur = g.dur; }
+      s.rem = Math.max(0, g.startedAt + g.dur - Date.now());
+      s.dur = g.dur;
       // en direct : l'animateur voit tout de suite, un joueur seulement après avoir répondu
       if (g.live && (staff || (me && me.a[g.q] != null))) s.counts = c;
     } else {
@@ -153,8 +154,7 @@ function tick() {
   for (const [code, g] of games) {
     if (g.phase === 'question') {
       const all = g.players.size > 0 && [...g.players.values()].every(p => p.a[g.q] != null);
-      const poll = g.questions[g.q].c < 0; // un sondage n’a pas de limite de temps : il se termine quand tout le monde a répondu, ou sur l’action de l’animateur
-      if ((!poll && now >= g.startedAt + g.dur) || all) reveal(g);
+      if (now >= g.startedAt + g.dur || all) reveal(g);
     }
     if (g.dirty) broadcast(g);
     else if (now - g.last > 15000 && g.clients.size) broadcast(g); // keep-alive
@@ -719,7 +719,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (S.correct >= 0) return '<div class="answer"><div class="lbl">Correct answer</div><div class="ans">' + L[S.correct] + ' · ' + esc(Q.o[S.correct]) + '</div>' + (S.expl ? '<p>' + rich(S.expl) + '</p>' : '') + '</div>';
     return S.expl ? '<div class="answer"><div class="lbl">Key takeaway</div><p>' + rich(S.expl) + '</p></div>' : '';
   }
-  const qhead = withRing => '<div class="qhead"><div><div class="kicker">Question ' + (S.q + 1) + ' / ' + S.total + '</div><div class="qtext">' + esc(S.question.q) + '</div></div>' + (withRing && !S.poll ? ring() : '') + '</div>';
+  const qhead = withRing => '<div class="qhead"><div><div class="kicker">Question ' + (S.q + 1) + ' / ' + S.total + '</div><div class="qtext">' + esc(S.question.q) + '</div></div>' + (withRing ? ring() : '<div class="ring" style="visibility:hidden" aria-hidden="true"></div>') + '</div>';
   /* synthèse de fin : quiz = % de bonnes réponses ; sondage = réponses classées par pourcentage décroissant */
   const pc = (n, tot) => tot ? Math.round(n / tot * 100) : 0;
   function recapRows() {
@@ -1085,7 +1085,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
             vd.disabled = false;
           });
           vd.onclick = () => {
-            if (pick == null || (!S.poll && Date.now() > deadline + 800)) return;
+            if (pick == null || Date.now() > deadline + 800) return;
             S.me = { name: me.name, ans: pick }; render();
             if (!demo) post('/api/answer', { code: sess.code, id: sess.id, c: pick }).catch(() => {});
           };
