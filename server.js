@@ -71,7 +71,7 @@ function stateFor(g, cl) {
   if (cl.role === 'host') {
     s.view = g.view;
     const N = g.questions[g.q + 1];
-    s.next = more ? (Q.t === 'info' ? 'content' : 'sub') : N ? N.t : 'end';
+    s.next = more ? (Q.t === 'info' ? 'content' : 'sub') : N ? (N.t === 'info' && !g.questions[g.q + 2] ? 'final' : N.t) : 'end';
     s.back = g.phase === 'end' || (g.phase !== 'lobby' && (g.q > 0 || g.step > 0));
     if (s.slide && Q.t === 'scene' && Q.subs.length > 1) s.part = [g.step + 1, Q.subs.length];
   }
@@ -80,12 +80,11 @@ function stateFor(g, cl) {
   if (g.phase === 'lobby' && staff) s.names = [...g.players.values()].slice(0, 200).map(p => p.name);
   if (Q && (g.phase === 'question' || g.phase === 'reveal')) {
     s.question = { q: Q.q, o: Q.o };
-    if (staff) s.poll = Q.c < 0;
+    s.poll = Q.c < 0; // sondage : pas de bonne réponse, pas de minuteur
     const c = counts(g);
     s.answered = c.reduce((a, b) => a + b, 0);
     if (g.phase === 'question') {
-      s.rem = Math.max(0, g.startedAt + g.dur - Date.now());
-      s.dur = g.dur;
+      if (Q.c >= 0) { s.rem = Math.max(0, g.startedAt + g.dur - Date.now()); s.dur = g.dur; }
       // en direct : l'animateur voit tout de suite, un joueur seulement après avoir répondu
       if (g.live && (staff || (me && me.a[g.q] != null))) s.counts = c;
     } else {
@@ -154,7 +153,8 @@ function tick() {
   for (const [code, g] of games) {
     if (g.phase === 'question') {
       const all = g.players.size > 0 && [...g.players.values()].every(p => p.a[g.q] != null);
-      if (now >= g.startedAt + g.dur || all) reveal(g);
+      const poll = g.questions[g.q].c < 0; // un sondage n’a pas de limite de temps : il se termine quand tout le monde a répondu, ou sur l’action de l’animateur
+      if ((!poll && now >= g.startedAt + g.dur) || all) reveal(g);
     }
     if (g.dirty) broadcast(g);
     else if (now - g.last > 15000 && g.clients.size) broadcast(g); // keep-alive
@@ -560,6 +560,16 @@ body.host .sub.cue{font-size:clamp(36px,3.9vw,74px)}
 .cue.sw .cb{opacity:1}
 .cue .ck{width:1em;height:1em;vertical-align:-.14em;margin-right:.4em;fill:none;stroke:var(--halo);stroke-width:1.8;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(127,220,255,.6))}
 .cue .tm,.cue .ct{color:#fff}
+.cue .ct.roll{display:inline-block;position:relative;overflow:hidden;vertical-align:top;height:1.15em;line-height:1.15;text-align:right}
+.cue .ct.roll .rw{display:block}
+.cue .ct.roll .rw.out{position:absolute;left:0;right:0;top:0}
+.cue .pl{transition:opacity .3s ease}
+@media (prefers-reduced-motion:no-preference){
+.cue .ct.roll .rw.in{animation:rwin .42s cubic-bezier(.2,.8,.25,1) both}
+.cue .ct.roll .rw.out{animation:rwout .42s cubic-bezier(.5,0,.75,.4) both}
+}
+@keyframes rwin{from{transform:translateY(-100%);opacity:0}to{transform:none;opacity:1}}
+@keyframes rwout{from{transform:none;opacity:1}to{transform:translateY(100%);opacity:0}}
 .scene .shd{position:relative}
 .scene .shd>.sub{position:absolute;left:0;right:0;top:100%}
 .scene{padding-bottom:calc(6vh + 90px)}
@@ -709,7 +719,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (S.correct >= 0) return '<div class="answer"><div class="lbl">Correct answer</div><div class="ans">' + L[S.correct] + ' · ' + esc(Q.o[S.correct]) + '</div>' + (S.expl ? '<p>' + rich(S.expl) + '</p>' : '') + '</div>';
     return S.expl ? '<div class="answer"><div class="lbl">Key takeaway</div><p>' + rich(S.expl) + '</p></div>' : '';
   }
-  const qhead = withRing => '<div class="qhead"><div><div class="kicker">Question ' + (S.q + 1) + ' / ' + S.total + '</div><div class="qtext">' + esc(S.question.q) + '</div></div>' + (withRing ? ring() : '') + '</div>';
+  const qhead = withRing => '<div class="qhead"><div><div class="kicker">Question ' + (S.q + 1) + ' / ' + S.total + '</div><div class="qtext">' + esc(S.question.q) + '</div></div>' + (withRing && !S.poll ? ring() : '') + '</div>';
   /* synthèse de fin : quiz = % de bonnes réponses ; sondage = réponses classées par pourcentage décroissant */
   const pc = (n, tot) => tot ? Math.round(n / tot * 100) : 0;
   function recapRows() {
@@ -804,9 +814,21 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       const cts = [...cue.querySelectorAll('.ct')].filter(ct => +ct.dataset.n > 1 && +ct.dataset.n <= 12);
       cts.forEach(ct => { // One week… Two weeks… Three weeks later
         const n = +ct.dataset.n, cu = ct.nextElementSibling && ct.nextElementSibling.classList.contains('cu') ? ct.nextElementSibling : null;
-        const show = k => { if (!ct.isConnected) return; ct.textContent = +ct.dataset.w ? numWord(k, +ct.dataset.cap) : String(k); if (cu) cu.textContent = cu.dataset.u + (k > 1 ? 's' : ''); };
-        show(1);
-        for (let k = 2; k <= n; k++) setTimeout(() => { show(k); flick(ct); }, t + (k - 2) * 600 + 300);
+        const word = k => +ct.dataset.w ? numWord(k, +ct.dataset.cap) : String(k);
+        let wmax = 0; // largeur fixe = le mot le plus large : « weeks later » ne bouge jamais
+        for (let k = 1; k <= n; k++) { ct.textContent = word(k); wmax = Math.max(wmax, ct.getBoundingClientRect().width); }
+        ct.classList.add('roll'); ct.style.width = Math.ceil(wmax + 2) + 'px';
+        ct.innerHTML = '<span class="rw">' + esc(word(1)) + '</span>';
+        const pl = k => { if (cu) cu.innerHTML = esc(cu.dataset.u) + '<span class="pl"' + (k > 1 ? '' : ' style="opacity:0"') + '>s</span>'; }; // le « s » garde sa place
+        pl(1);
+        const show = k => { // le chiffre suivant descend du haut, le précédent sort par le bas (comme un sélecteur iPhone)
+          if (!ct.isConnected) return;
+          const old = ct.querySelector('.rw:not(.out)'), nw = document.createElement('span');
+          nw.className = 'rw in'; nw.textContent = word(k); ct.appendChild(nw);
+          if (old) { old.classList.add('out'); setTimeout(() => old.remove(), 450); }
+          pl(k);
+        };
+        for (let k = 2; k <= n; k++) setTimeout(() => show(k), t + (k - 2) * 650 + 300);
         t += (n - 1) * 600 + 700;
       });
       tws.forEach(w => { // puis l’heure apparaît et défile jusqu’à l’heure de la scène
@@ -890,7 +912,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   }
   window.addEventListener('resize', fitScene);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitScene);
-  const nextLabel = () => ({ sub: 'Next cue', content: 'Show the content', q: 'Start the question', scene: 'Next scene', info: 'Next topic', end: 'Finish' })[S.next] || 'Next';
+  const nextLabel = () => ({ sub: 'Next cue', content: 'Show the content', final: 'Final screen', q: 'Start the question', scene: 'Next scene', info: 'Next topic', end: 'Finish' })[S.next] || 'Next';
   function slide() {
     const d = S.slide || {};
     if (d.t === 'scene') {
@@ -1063,7 +1085,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
             vd.disabled = false;
           });
           vd.onclick = () => {
-            if (pick == null || Date.now() > deadline + 800) return;
+            if (pick == null || (!S.poll && Date.now() > deadline + 800)) return;
             S.me = { name: me.name, ans: pick }; render();
             if (!demo) post('/api/answer', { code: sess.code, id: sess.id, c: pick }).catch(() => {});
           };
