@@ -64,13 +64,14 @@ function stateFor(g, cl) {
   // i = position dans le déroulé (scènes, contenus, questions) ; q = numéro de question
   const s = { code: g.code, title: g.title, phase: g.phase, i: g.q, steps: g.questions.length, total: g.nq, n: g.players.size,
     q: g.questions.slice(0, g.q + 1).filter(x => x.t === 'q').length - 1 };
-  const more = Q && g.phase === 'slide' && Q.t === 'scene' && g.step < Q.subs.length - 1;
-  if (Q && g.phase === 'slide') s.slide = Q.t === 'scene' ? { t: 'scene', title: Q.title, sub: Q.subs[g.step] || '' } : { t: 'info', title: Q.title, lines: Q.lines, fin: !g.questions[g.q + 1] }; // fin = dernier écran du déroulé
+  const two = g.phase === 'slide' && ask(g, Q);
+  const more = Q && g.phase === 'slide' && ((Q.t === 'scene' && g.step < Q.subs.length - 1) || (two && g.step < 1));
+  if (Q && g.phase === 'slide') s.slide = Q.t === 'scene' ? { t: 'scene', title: Q.title, sub: Q.subs[g.step] || '' } : { t: 'info', title: Q.title, lines: two && !g.step ? [] : Q.lines, ask: two, fin: !g.questions[g.q + 1] }; // fin = dernier écran du déroulé
   const staff = cl.role === 'host' || cl.role === 'screen'; // animateur ou écran de projection
   if (cl.role === 'host') {
     s.view = g.view;
     const N = g.questions[g.q + 1];
-    s.next = more ? 'sub' : N ? N.t : 'end';
+    s.next = more ? (Q.t === 'info' ? 'content' : 'sub') : N ? N.t : 'end';
     s.back = g.phase === 'end' || (g.phase !== 'lobby' && (g.q > 0 || g.step > 0));
     if (s.slide && Q.t === 'scene' && Q.subs.length > 1) s.part = [g.step + 1, Q.subs.length];
   }
@@ -121,9 +122,11 @@ function show(g, i, back) {
     else beginQuestion(g);
   } else {
     if (back && it.t === 'scene') g.step = Math.max(0, it.subs.length - 1);
+    if (back && ask(g, it)) g.step = 1;
     g.phase = 'slide'; broadcast(g);
   }
 }
+const ask = (g, Q) => !!(Q && Q.t === 'info' && Q.title && Q.lines.length && g.questions[g.q + 1]); // contenu en 2 temps (sauf l’écran final)
 function hostAction(g, action) {
   // anti double-appui : un changement d'étape vient d'avoir lieu (action ou révélation automatique) -> on ignore un appui trop rapproché
   const now = Date.now(), nav = action === 'reveal' || action === 'next' || action === 'prev';
@@ -134,6 +137,7 @@ function hostAction(g, action) {
   else if (action === 'next' && (g.phase === 'reveal' || g.phase === 'slide')) {
     const it = g.questions[g.q];
     if (g.phase === 'slide' && it.t === 'scene' && g.step < it.subs.length - 1) { g.step++; broadcast(g); }
+    else if (g.phase === 'slide' && ask(g, it) && g.step < 1) { g.step = 1; broadcast(g); }
     else show(g, g.q + 1);
   } else if (action === 'prev') {
     if (g.phase === 'end') show(g, g.questions.length - 1, true);
@@ -267,29 +271,29 @@ const DEFAULT_QUIZ = [
    "About 6,000"
   ],
   "c": 1,
-  "e": "About 1,200 people, roughly 15 % of the group (85 % in France)."
+  "e": "About 1,200 people: roughly 15 % of the group.\n85 % are in France."
  },
  {
   "q": "When are French and German teams most likely to be at their desks at the same time?",
   "o": [
-   "7:00 – 9:00",
-   "9:30 – 11:00",
-   "12:00 – 13:30",
-   "17:00 – 19:00"
+   "7 – 9 a.m.",
+   "9:30 – 11 a.m.",
+   "12 – 1:30 p.m.",
+   "5 – 7 p.m."
   ],
   "c": 1,
-  "e": "In Germany, people often start between 6:30 and 8:00, have a 30-minute lunch from 11:00, and offices can be empty from 16:00 (part-time often means a free afternoon). In France, people start around 9:00-9:30, have a one-hour lunch around 12:30 and stay until 18:00-19:00. Your shared windows: about 9:30-11:00 and 13:30-16:00."
+  "e": "**Germany:** early start (around 7 a.m.), short lunch, often gone by 4 p.m.\n**France:** starts around 9 a.m., long lunch, stays until 6 or 7 p.m.\n**Shared windows:** 9:30 – 11 a.m. and 1:30 – 4 p.m."
  },
  {
   "q": "And if we add Kourou? When can France, Germany and Kourou all meet (Paris / Munich time)?",
   "o": [
-   "9:30 – 11:00",
-   "13:30 – 16:00",
-   "17:00 – 19:00",
+   "9:30 – 11 a.m.",
+   "1:30 – 4 p.m.",
+   "5 – 7 p.m.",
    "Never"
   ],
   "c": 1,
-  "e": "In winter, Kourou is 4 hours behind Paris and Munich (5 hours in summer). Base working hours there are about 8:00 to 17:15, so Kourou starts around noon European time. The only window for all three: about 13:30-16:00 in Paris and Munich (9:30-12:00 in Kourou, in winter). Two and a half hours a day."
+  "e": "In winter, Kourou is **4 hours behind** Paris and Munich.\nIts working day starts around **noon, our time**.\n**Only shared window:** 1:30 – 4 p.m. (9:30 a.m. – noon in Kourou)."
  },
  {
   "q": "Who thinks the other side is hiding information?",
@@ -300,7 +304,7 @@ const DEFAULT_QUIZ = [
    "Nobody"
   ],
   "c": 2,
-  "e": "Both. Export control slows sharing on the French side, the Betriebsrat on the German side. And the French often simply don’t think of sharing: it is rarely retention, it is forgetting. The reflex to build: “Who on the other side needs this?”"
+  "e": "**France:** export control slows sharing. **Germany:** the Betriebsrat.\nAnd often the French simply forget to share: it is rarely on purpose.\n**The reflex:** “Who on the other side needs this?”"
  },
  {
   "q": "For you, good Franco-German cooperation is above all…",
@@ -347,7 +351,7 @@ const DEFAULT_QUIZ = [
   "e": ""
  }
 ];
-const DEFAULT_TEXT = "How many people work at ArianeGroup?\nAbout 2,000\n*About 8,000\nAbout 15,000\nAbout 30,000\n> About 8,000 people, in France and in Germany.\n\nHow many of them are based in Germany?\nAbout 300\n*About 1,200\nAbout 4,000\nAbout 6,000\n> About 1,200 people, roughly 15 % of the group (85 % in France).\n\nSCENE: 2. IGNITION – The Interview\nRight here. Right now.\n\nCONTENT: Two toolboxes, one rocket\n- Often seen on the French side: agility, speed, improvisation. A solution in five minutes.\n- Often seen on the German side: planning, structure, reliability. A plan that holds.\n- Neither works alone: a plan needs a plan B, and a plan B needs a plan.\nFrench agility + German rigour: what makes mixed teams strong.\n\nCONTENT: English: who speaks it best?\n- EF English Proficiency Index 2025: Germany ranks #4 worldwide (very high level), France #38 (moderate level).\n- On the ground, the level varies on both sides: it is more a question of generation than of nationality.\nAnd at ArianeGroup, few people are native speakers of the official language.\n\nCONTENT: Who decides?\n- The French manager decides quickly, says what to do… and may change the decision. Seen from Germany: unstable.\n- The German manager asks “What do you propose?”, consults… and then the decision is final. Seen from France: a boss who doesn’t decide.\nSame goal: a good decision. Two different timings.\n\nSCENE: 3. LIFTOFF – The First Day\nThree weeks later. 7:00 a.m.\n9:30 a.m.\n11:00 a.m.\n\nSCENE: 4. ASCENT – Lost in Translation\nAfter lunch\n\nWhen are French and German teams most likely to be at their desks at the same time?\n7:00 – 9:00\n*9:30 – 11:00\n12:00 – 13:30\n17:00 – 19:00\n> In Germany, people often start between 6:30 and 8:00, have a 30-minute lunch from 11:00, and offices can be empty from 16:00 (part-time often means a free afternoon). In France, people start around 9:00-9:30, have a one-hour lunch around 12:30 and stay until 18:00-19:00. Your shared windows: about 9:30-11:00 and 13:30-16:00.\n\nAnd if we add Kourou? When can France, Germany and Kourou all meet (Paris / Munich time)?\n9:30 – 11:00\n*13:30 – 16:00\n17:00 – 19:00\nNever\n> In winter, Kourou is 4 hours behind Paris and Munich (5 hours in summer). Base working hours there are about 8:00 to 17:15, so Kourou starts around noon European time. The only window for all three: about 13:30-16:00 in Paris and Munich (9:30-12:00 in Kourou, in winter). Two and a half hours a day.\n\nWho thinks the other side is hiding information?\nThe French\nThe Germans\n*Both\nNobody\n> Both. Export control slows sharing on the French side, the Betriebsrat on the German side. And the French often simply don’t think of sharing: it is rarely retention, it is forgetting. The reflex to build: “Who on the other side needs this?”\n\nSCENE: 5. MAX Q – The Big Meeting\nThe weekly team meeting\n\nSCENE: 6. ORBIT INSERTION – The Conclusion\n\nFor you, good Franco-German cooperation is above all…\nListening before deciding\nChoosing our working language together\nSharing information as a reflex\nRespecting each other’s rhythm\n\nWhat do you value most in your colleagues from across the border?\nTheir expertise\nTheir reliability\nTheir agility\nTheir different way of seeing the same problem\n\nTomorrow, with my mixed team, I will…\nAsk which language people prefer for our meetings\nAsk myself “who on the other side needs this?” before sending\nSchedule our meetings in our shared time window\nAgree on how we decide, before deciding\n\nWhat makes Ariane 6 fly?\nThe French lower stage\nThe German upper stage\nA very long meeting\n*Both stages, letting go at the same second\n\nCONTENT: Two Stages, One Rocket\nWe are not that different. And it’s exactly that bit that makes it fly.\nThank you! Danke! Merci!";
+const DEFAULT_TEXT = "How many people work at ArianeGroup?\nAbout 2,000\n*About 8,000\nAbout 15,000\nAbout 30,000\n> About 8,000 people, in France and in Germany.\n\nHow many of them are based in Germany?\nAbout 300\n*About 1,200\nAbout 4,000\nAbout 6,000\n> About 1,200 people: roughly 15 % of the group.\n> 85 % are in France.\n\nSCENE: 2. IGNITION – The Interview\nRight here. Right now.\n\nCONTENT: How do the French and the Germans see each other?\n- **The French** are often seen as **agile, fast, improvising**: a solution in five minutes.\n- **The Germans** are often seen as **planned, structured, reliable**: a plan that holds.\n- **Neither works alone:** a plan needs a plan B, and a plan B needs a plan.\nFrench agility + German rigour: what makes mixed teams strong.\n\nCONTENT: English: who speaks it best?\n- **Germany:** #4 worldwide, **very high level** (EF English Proficiency Index 2025).\n- **France:** #38, **moderate level**.\n- **On the ground:** it varies on both sides. More a question of **generation** than of nationality.\nAt ArianeGroup, few people are native speakers of the official language.\n\nCONTENT: Who decides?\n- **The French manager** decides quickly, says what to do… and may change the decision. **Seen from Germany:** unstable.\n- **The German manager** asks “What do you propose?”, consults… then the decision is final. **Seen from France:** a boss who doesn’t decide.\nSame goal: a good decision. Two different timings.\n\nSCENE: 3. LIFTOFF – The First Day\nThree weeks later. 7:00 a.m.\n9:30 a.m.\n11:00 a.m.\n\nSCENE: 4. ASCENT – Lost in Translation\nAfter lunch\n\nWhen are French and German teams most likely to be at their desks at the same time?\n7 – 9 a.m.\n*9:30 – 11 a.m.\n12 – 1:30 p.m.\n5 – 7 p.m.\n> **Germany:** early start (around 7 a.m.), short lunch, often gone by 4 p.m.\n> **France:** starts around 9 a.m., long lunch, stays until 6 or 7 p.m.\n> **Shared windows:** 9:30 – 11 a.m. and 1:30 – 4 p.m.\n\nAnd if we add Kourou? When can France, Germany and Kourou all meet (Paris / Munich time)?\n9:30 – 11 a.m.\n*1:30 – 4 p.m.\n5 – 7 p.m.\nNever\n> In winter, Kourou is **4 hours behind** Paris and Munich.\n> Its working day starts around **noon, our time**.\n> **Only shared window:** 1:30 – 4 p.m. (9:30 a.m. – noon in Kourou).\n\nWho thinks the other side is hiding information?\nThe French\nThe Germans\n*Both\nNobody\n> **France:** export control slows sharing. **Germany:** the Betriebsrat.\n> And often the French simply forget to share: it is rarely on purpose.\n> **The reflex:** “Who on the other side needs this?”\n\nSCENE: 5. MAX Q – The Big Meeting\nThe weekly team meeting\n\nSCENE: 6. ORBIT INSERTION – The Conclusion\n\nFor you, good Franco-German cooperation is above all…\nListening before deciding\nChoosing our working language together\nSharing information as a reflex\nRespecting each other’s rhythm\n\nWhat do you value most in your colleagues from across the border?\nTheir expertise\nTheir reliability\nTheir agility\nTheir different way of seeing the same problem\n\nTomorrow, with my mixed team, I will…\nAsk which language people prefer for our meetings\nAsk myself “who on the other side needs this?” before sending\nSchedule our meetings in our shared time window\nAgree on how we decide, before deciding\n\nWhat makes Ariane 6 fly?\nThe French lower stage\nThe German upper stage\nA very long meeting\n*Both stages, letting go at the same second\n\nCONTENT: Two Stages, One Rocket\nWe are not that different. And it’s exactly that bit that makes it fly.\nThank you! Danke! Merci!";
 
 const CSS = `
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -438,14 +442,14 @@ body.host .pct{font-size:46px;min-width:100px}
 .answer .ans{font-family:var(--disp);font-weight:700;font-size:26px;line-height:1.1;margin-top:4px}
 body.host .answer .ans{font-size:36px}
 .answer p{margin-top:8px;color:rgba(255,255,255,.88);font-size:16px}
-body.host .answer p{font-size:20px}
+body.host .answer p{font-size:clamp(20px,1.6vw,30px);line-height:1.4}
 body.host.longx #app{padding-top:16px;gap:12px}
 body.host.longx .qtext{font-size:clamp(26px,3vw,40px)}
 body.host.longx .tile{min-height:64px;padding:8px 18px}
 body.host.longx .pct{font-size:34px}
 body.host.longx .answer{padding:12px 18px}
 body.host.longx .answer .ans{font-size:28px}
-body.host.longx .answer p{font-size:17px;margin-top:4px}
+body.host.longx .answer p{font-size:clamp(17px,1.3vw,24px);margin-top:4px}
 body.host .foot{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
 body.host:not(.screen) .foot{position:sticky;bottom:0;z-index:5;padding:16px 0 18px;margin-bottom:-18px;background:linear-gradient(to top,rgba(0,13,26,.97) 70%,rgba(0,13,26,0))}
 body.host:not(.screen) .foot.endfoot{position:static;margin:0;padding:0;background:none}
@@ -566,6 +570,22 @@ body.host .scene{padding-bottom:calc(6vh + 150px)}
 }
 @keyframes cuein{from{opacity:0;transform:scale(1.12)}to{opacity:1;transform:none}}
 @keyframes cflk{from{opacity:.25}to{opacity:1}}
+.info{display:flex;flex-direction:column;justify-content:flex-start;gap:20px;padding-top:2vh}
+.info h1.iq{font-size:34px;line-height:1.08;text-shadow:0 0 30px rgba(127,220,255,.4),0 0 6px rgba(127,220,255,.3)}
+body.host .info h1.iq{font-size:clamp(40px,3.6vw,72px)}
+.info .rule{margin:2px 0 6px}
+.info .body{padding:20px 22px}
+body.host .info .body{padding:clamp(18px,1.6vw,32px) clamp(22px,2.2vw,44px)}
+.info .body li,.info .body p{font-size:18px;line-height:1.42;color:rgba(255,255,255,.86)}
+body.host .info .body li,body.host .info .body p{font-size:clamp(21px,1.75vw,34px)}
+.info .body li{margin-top:.55em}
+.info .body li:first-child{margin-top:0}
+.info .body strong{color:#fff;font-weight:700}
+.info .body p.concl{margin-top:.9em;padding-top:.75em;border-top:1px solid rgba(127,220,255,.35);font-family:var(--disp);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--halo);text-shadow:0 0 12px rgba(127,220,255,.4);font-size:21px;line-height:1.25}
+body.host .info .body p.concl{font-size:clamp(25px,2.1vw,40px)}
+.answer p strong{color:#fff}
+@media (prefers-reduced-motion:no-preference){.info .body.in{animation:infoin .6s ease both}}
+@keyframes infoin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .ctrl{display:none}
 body.host .ctrl{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}
 .ctrl p{margin:6px 0 14px}
@@ -663,7 +683,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
         if (x[0] === '*') { c = o.length; x = x.slice(1).trim(); }
         o.push(x);
       });
-      return { t: 'q', q: l[0], o, c, e: e.join(' ') };
+      return { t: 'q', q: l[0], o, c, e: e.join('\n') }; // une ligne « > » = une ligne d’explication
     }).filter(x => x.t === 'scene' ? x.title : x.t === 'info' ? (x.title || x.lines.length) : (x.o.length >= 2 && x.o.length <= 4));
   }
   const quizText = () => DEFAULT_TEXT;
@@ -686,8 +706,8 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   }
   function answerCard() {
     const Q = S.question;
-    if (S.correct >= 0) return '<div class="answer"><div class="lbl">Correct answer</div><div class="ans">' + L[S.correct] + ' · ' + esc(Q.o[S.correct]) + '</div>' + (S.expl ? '<p>' + esc(S.expl) + '</p>' : '') + '</div>';
-    return S.expl ? '<div class="answer"><div class="lbl">Key takeaway</div><p>' + esc(S.expl) + '</p></div>' : '';
+    if (S.correct >= 0) return '<div class="answer"><div class="lbl">Correct answer</div><div class="ans">' + L[S.correct] + ' · ' + esc(Q.o[S.correct]) + '</div>' + (S.expl ? '<p>' + rich(S.expl) + '</p>' : '') + '</div>';
+    return S.expl ? '<div class="answer"><div class="lbl">Key takeaway</div><p>' + rich(S.expl) + '</p></div>' : '';
   }
   const qhead = withRing => '<div class="qhead"><div><div class="kicker">Question ' + (S.q + 1) + ' / ' + S.total + '</div><div class="qtext">' + esc(S.question.q) + '</div></div>' + (withRing ? ring() : '') + '</div>';
   /* synthèse de fin : quiz = % de bonnes réponses ; sondage = réponses classées par pourcentage décroissant */
@@ -870,7 +890,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
   }
   window.addEventListener('resize', fitScene);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitScene);
-  const nextLabel = () => ({ sub: 'Next cue', q: 'Start the question', scene: 'Next scene', info: 'Show the content', end: 'Finish' })[S.next] || 'Next';
+  const nextLabel = () => ({ sub: 'Next cue', content: 'Show the content', q: 'Start the question', scene: 'Next scene', info: 'Next topic', end: 'Finish' })[S.next] || 'Next';
   function slide() {
     const d = S.slide || {};
     if (d.t === 'scene') {
@@ -887,16 +907,20 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
         (d.title ? '<h1 class="fit">' + esc(d.title).replace(/,\s*/, ',<br>') + '</h1>' : '') + '<div class="rule"></div>' +
         L.map(l => '<p class="fmsg">' + esc(l) + '</p>').join('') + (thx ? '<p class="fthx">' + esc(thx) + '</p>' : '') + '</div></div>';
     }
-    let h = '', ul = false;
+    let h = '', ul = false, had = false;
     (d.lines || []).forEach(l => {
       const b = /^[-•]\s*/.test(l);
-      if (b && !ul) { h += '<ul>'; ul = true; }
+      if (b && !ul) { h += '<ul>'; ul = true; had = true; }
       if (!b && ul) { h += '</ul>'; ul = false; }
-      h += b ? '<li>' + esc(l.replace(/^[-•]\s*/, '')) + '</li>' : '<p>' + esc(l) + '</p>';
+      h += b ? '<li>' + rich(l.replace(/^[-•]\s*/, '')) + '</li>' : '<p' + (had ? ' class="concl"' : '') + '>' + rich(l) + '</p>'; // une phrase après les puces = conclusion
     });
     if (ul) h += '</ul>';
-    return '<div class="info">' + (d.title ? '<h1>' + esc(d.title) + '</h1>' : '') + (h ? '<div class="card body">' + h + '</div>' : '') + '</div>';
+    const k = d.title + '|' + (d.lines || []).length, anim = h && infoSeen !== k; infoSeen = k; // le contenu n’apparaît en fondu qu’une fois
+    return '<div class="info' + (d.ask ? ' ask' : '') + '">' + (d.title ? '<h1 class="iq">' + esc(d.title) + '</h1><div class="rule"></div>' : '') +
+      (h ? '<div class="card body' + (anim ? ' in' : '') + '">' + h + '</div>' : '') + '</div>';
   }
+  const rich = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+  let infoSeen = '';
   const plural = (n, w) => n + ' ' + w + (n > 1 ? 's' : '');
   const set = (html, bind) => { app.innerHTML = html; if (bind) bind(); const bk = $('#bk'); if (bk) bk.onclick = () => act('prev'); };
   const back = () => S && S.back ? '<button class="btn ghost back" id="bk">Back</button>' : '';
@@ -1053,8 +1077,8 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
 
   function render() {
     const me = S && S.me;
-    document.body.classList.toggle('longx', !!(S && S.phase === 'reveal' && S.expl && S.expl.length > 240));
-    const key = [isHost, !!sess, S ? S.phase : '-', S ? S.i + ':' + S.q + ':' + (S.slide ? S.slide.sub : '') + ':' + S.back : '', me ? me.ans : '', err].join('|');
+    document.body.classList.toggle('longx', !!(S && S.phase === 'reveal' && S.expl && S.expl.length > 320));
+    const key = [isHost, !!sess, S ? S.phase : '-', S ? S.i + ':' + S.q + ':' + (S.slide ? S.slide.sub + '/' + (S.slide.lines || []).length : '') + ':' + S.back : '', me ? me.ans : '', err].join('|');
     if (key !== view) { view = key; if (!(S && S.phase === 'slide' && S.slide && (S.slide.t === 'scene' || S.slide.fin))) { sceneSeen = ''; cueKey = ''; cueMem = { scene: '', min: null }; } isHost ? buildHost() : buildPlayer(); requestAnimationFrame(() => { fitScene(); flights(); cueAnim(); patch(); }); }
     else patch();
   }
@@ -1069,7 +1093,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     if (ph === 'reveal') { S.counts = [5, 3, 29, 4]; S.correct = Q.c; S.expl = Q.e; if (!isHost) S.me = { name: 'Camille', ans: 2 }; }
     if (ph === 'scene') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'scene', title: '4. ASCENT – Lost in Translation', sub: 'After lunch' }; S.part = [1, 2]; S.back = true; }
     if (ph === 'final') { S.phase = 'slide'; S.next = 'end'; S.back = true; S.slide = { t: 'info', fin: true, title: 'Two Stages, One Rocket', lines: ['We are not that different. And it’s exactly that bit that makes it fly.', 'Thank you! Danke! Merci!'] }; }
-    if (ph === 'info') { S.phase = 'slide'; S.next = 'q'; S.slide = { t: 'info', title: 'Focus on stereotypes', lines: ['A stereotype is a simplified belief applied to a whole group.', '- It saves time, but it distorts judgement', '- Everyone has them, often without knowing it', '- Spotting them is the first step to getting rid of them'] }; }
+    if (ph === 'info') { S.phase = 'slide'; S.next = 'info'; S.slide = { t: 'info', title: 'Focus on stereotypes', lines: ['A stereotype is a simplified belief applied to a whole group.', '- It saves time, but it distorts judgement', '- Everyone has them, often without knowing it', '- Spotting them is the first step to getting rid of them'] }; }
     if (ph === 'end') S.recap = DEFAULT_QUIZ.map((x, i) => ({ q: x.q, n: 44 - i, good: x.c < 0 ? null : 30 - 4 * i, poll: x.c < 0, c: x.c, o: x.o.map((t, j) => ({ t, n: [9, 21, 6, 8][j] || 1 })) }));
     deadline = Date.now() + (S.rem || 0);
   }
