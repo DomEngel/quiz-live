@@ -745,6 +745,81 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     a.download = 'quiz-summary-' + ((S && S.code) || '') + '.csv'; document.body.appendChild(a); a.click(); a.remove();
   }
 
+  /* synthèse en PDF : fichier généré dans la page (marche aussi sur mobile, sans passer par l’impression) */
+  const HW = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+  const WIN = { '€': 128, '…': 133, '•': 149, '‘': 145, '’': 146, '“': 147, '”': 148, '–': 150, '—': 151, '™': 153, ' ': 32, ' ': 32 };
+  const winAnsi = t => [...String(t)].map(ch => { const c = ch.charCodeAt(0); return WIN[ch] != null ? String.fromCharCode(WIN[ch]) : c < 256 ? ch : '?'; }).join('');
+  const tw = (t, size, bold) => [...t].reduce((w, ch) => { const c = ch.charCodeAt(0); return w + (c >= 32 && c <= 126 ? HW[c - 32] : 556); }, 0) * size / 1000 * (bold ? 1.06 : 1);
+  function wrap(t, size, bold, max) {
+    const out = []; let line = '';
+    String(t).split(/\s+/).filter(Boolean).forEach(w => {
+      const tr = line ? line + ' ' + w : w;
+      if (tw(winAnsi(tr), size, bold) <= max || !line) line = tr; else { out.push(line); line = w; }
+    });
+    if (line) out.push(line);
+    return out.length ? out : [''];
+  }
+  function recapPDF() {
+    const W = 595, H = 842, M = 50, CW = W - 2 * M, pages = []; let ops = [], y = H - M;
+    const pdfStr = t => '(' + winAnsi(t).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)') + ')';
+    const text = (t, x, yy, size, bold, rgb) => ops.push((rgb || '0.05 0.12 0.2') + ' rg BT /' + (bold ? 'F2' : 'F1') + ' ' + size + ' Tf ' + x.toFixed(1) + ' ' + yy.toFixed(1) + ' Td ' + pdfStr(t) + ' Tj ET');
+    const rect = (x, yy, w, h, rgb) => ops.push(rgb + ' rg ' + [x, yy, w, h].map(v => v.toFixed(1)).join(' ') + ' re f');
+    const newPage = () => { pages.push(ops); ops = []; y = H - M; };
+    const need = h => { if (y - h < M) newPage(); };
+    const L2 = ['A', 'B', 'C', 'D', 'E', 'F'];
+    text('Quiz summary', M, y - 20, 22, true); y -= 32;
+    text(((S && S.title) || 'Live quiz') + '  ·  ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), M, y - 12, 11, false, '0.35 0.42 0.5'); y -= 22;
+    text('Quiz: percentage of correct answers. Polls: share of each answer, from most to least chosen.', M, y - 10, 9, false, '0.35 0.42 0.5'); y -= 28;
+    (S.recap || []).filter(Boolean).forEach((r, i) => {
+      let rows = (r.o || []).map((x, j) => ({ t: x.t, n: x.n, j }));
+      if (r.poll) rows.sort((a, b) => b.n - a.n || a.j - b.j);
+      const ql = wrap((i + 1) + '. ' + r.q, 12, true, CW), optW = CW - 110;
+      const rl = rows.map(x => wrap((L2[x.j] || '') + '. ' + x.t, 10, !r.poll && x.j === r.c, optW));
+      need(ql.length * 15 + 16 + rl.reduce((a, l) => a + l.length * 13 + 6, 0) + 14);
+      ops.push('0.85 0.89 0.93 RG 0.5 w ' + M + ' ' + (y + 4).toFixed(1) + ' m ' + (W - M) + ' ' + (y + 4).toFixed(1) + ' l S');
+      ql.forEach(l => { text(l, M, y - 13, 12, true); y -= 15; });
+      text(plural(r.n, 'answer') + (r.poll ? '  ·  poll' : '  ·  ' + pc(r.good || 0, r.n) + ' % correct'), M, y - 10, 9, false, '0.35 0.42 0.5'); y -= 18;
+      rows.forEach((x, k) => {
+        const p = pc(x.n, r.n), good = !r.poll && x.j === r.c, h = rl[k].length * 13 + 4;
+        rect(M, y - h, CW, h, '0.95 0.96 0.97');
+        if (p) rect(M, y - h, CW * p / 100, h, good ? '0.75 0.9 0.8' : '0.8 0.9 0.97');
+        rl[k].forEach((l, m) => text(l, M + 6, y - 12 - m * 13, 10, good));
+        const lab = p + ' %  (' + x.n + ')' + (good ? '  correct' : '');
+        text(lab, W - M - 6 - tw(winAnsi(lab), 10, good), y - 12, 10, good);
+        y -= h + 3;
+      });
+      y -= 14;
+    });
+    pages.push(ops);
+    // assemblage du fichier PDF
+    const objs = [], add = o => { objs.push(o); return objs.length; };
+    const cat = add(''), pgs = add(''), f1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'), f2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+    const kids = pages.map((o, n) => {
+      const stream = o.join('\n') + '\nBT /F1 8 Tf 0.5 0.55 0.6 rg ' + (W - M - 30) + ' 25 Td ' + pdfStr((n + 1) + ' / ' + pages.length) + ' Tj ET';
+      const c = add('<< /Length ' + stream.length + ' >>\nstream\n' + stream + '\nendstream');
+      return add('<< /Type /Page /Parent ' + pgs + ' 0 R /MediaBox [0 0 ' + W + ' ' + H + '] /Resources << /Font << /F1 ' + f1 + ' 0 R /F2 ' + f2 + ' 0 R >> >> /Contents ' + c + ' 0 R >>');
+    });
+    objs[cat - 1] = '<< /Type /Catalog /Pages ' + pgs + ' 0 R >>';
+    objs[pgs - 1] = '<< /Type /Pages /Kids [' + kids.map(k => k + ' 0 R').join(' ') + '] /Count ' + kids.length + ' >>';
+    let out = '%PDF-1.4\n', offs = [];
+    objs.forEach((o, n) => { offs.push(out.length); out += (n + 1) + ' 0 obj\n' + o + '\nendobj\n'; });
+    const xref = out.length;
+    out += 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n' + offs.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('') + 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root ' + cat + ' 0 R >>\nstartxref\n' + xref + '\n%%EOF';
+    const bytes = new Uint8Array(out.length); for (let k = 0; k < out.length; k++) bytes[k] = out.charCodeAt(k) & 255;
+    return bytes;
+  }
+  async function savePDF() {
+    const name = 'quiz-summary-' + ((S && S.code) || '') + '.pdf', bytes = recapPDF();
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    try { // téléphone : menu de partage (Enregistrer dans Fichiers, Mail…)
+      const file = new File([blob], name, { type: 'application/pdf' });
+      if (matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Quiz summary' }); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
   const PHASE_ICONS = {
     "IGNITION": "<svg class=\"pi k-ignition\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path stroke-width=\"2\" d=\"M24 4 C27.575 6 29.5 9 29.5 12 V31 H18.5 V12 C18.5 9 20.425 6 24 4 Z\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M18.5 15 H29.5 M24 24 V31\"/><path stroke-width=\"2\" d=\"M19.8 31 L19.1 34 H23.5 L22.8 31 M25.2 31 L24.5 34 H28.9 L28.2 31\"/><g class=\"ig-fl\"><path stroke-width=\"2\" d=\"M19.4 36.5 C19.4 39.5 20.6 41.5 21.3 43 C22 41.5 23.2 39.5 23.2 36.5\"/><path stroke-width=\"2\" d=\"M24.8 36.5 C24.8 39.5 26 41.5 26.7 43 C27.4 41.5 28.6 39.5 28.6 36.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M21.3 37 V39.5 M26.7 37 V39.5\"/></g><path stroke-width=\"2\" d=\"M5 46 H43\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M15.5 41 V46 M32.5 41 V46\"/><g class=\"ig-sp\"><path stroke-width=\"2\" d=\"M13 37 L10.5 35.5 M35 37 L37.5 35.5 M11 42 L8.5 42 M37 42 L39.5 42\"/></g></svg>",
     "LIFTOFF": "<svg class=\"pi k-liftoff\" viewBox=\"0 0 48 48\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><g class=\"lo-st\"><path stroke-width=\"1\" opacity=\".5\" d=\"M12 10 V16 M10 19 V24\"/></g><g class=\"lo-mv\"><path stroke-width=\"2\" d=\"M21 3 C23.6 5 25.0 8 25.0 11 V29 H17.0 V11 C17.0 8 18.4 5 21 3 Z\"/><path stroke-width=\"2\" d=\"M18.5 29 L17.8 32 H24.2 L23.5 29\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M17 14 H25\"/><g class=\"lo-pl\"><path stroke-width=\"2\" d=\"M17.5 35 C16.5 39.5 13.5 42.5 9 44.5 M24.5 35 C25.5 39.5 28.5 42.5 33 44.5\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M21 35 V41\"/></g></g><path stroke-width=\"2\" d=\"M4 46 H31\"/><path stroke-width=\"2\" d=\"M38 8 V46\"/><path stroke-width=\"1\" opacity=\".5\" d=\"M43 12 V46 M38 15 L43 21 L38 27 L43 33 L38 39 L43 45\"/><path stroke-width=\"2\" d=\"M38 17 H32\"/></svg>",
@@ -1037,7 +1112,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
       '<div class="spacer"></div><div class="foot endfoot"><button class="btn" id="nw">New game</button><button class="btn ghost" id="rs">Replay with the same participants</button>' + (isScreen ? '' : '<button class="btn ghost" id="dl">Download (Excel)</button><button class="btn ghost" id="pr">Save as PDF</button>') + back() + '</div>',
       () => {
         $('#rs').onclick = () => act('restart');
-        if ($('#dl')) { $('#dl').onclick = downloadRecap; $('#pr').onclick = () => window.print(); }
+        if ($('#dl')) { $('#dl').onclick = downloadRecap; $('#pr').onclick = savePDF; }
         $('#nw').onclick = () => { if (demo) return; if (es) es.close(); save(null); sess = null; S = null; err = ''; render(); };
       });
   }
