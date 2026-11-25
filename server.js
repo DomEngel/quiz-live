@@ -596,6 +596,11 @@ body.host .info .body p.concl{font-size:clamp(25px,2.1vw,40px)}
 .answer p strong{color:#fff}
 @media (prefers-reduced-motion:no-preference){.info .body.in{animation:infoin .6s ease both}}
 @keyframes infoin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.card.past{margin-top:26px}
+.prow{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid rgba(127,220,255,.18)}
+.prow:first-of-type{border-top:0}
+.prow span{flex:1;min-width:0}
+.btn.sm,body.host .btn.sm{width:auto;min-width:0;padding:9px 14px;font-size:13px;align-self:center}
 .ctrl{display:none}
 body.host .ctrl{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}
 .ctrl p{margin:6px 0 14px}
@@ -768,7 +773,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     const need = h => { if (y - h < M) newPage(); };
     const L2 = ['A', 'B', 'C', 'D', 'E', 'F'];
     text('Quiz summary', M, y - 20, 22, true); y -= 32;
-    text(((S && S.title) || 'Live quiz') + '  ·  ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), M, y - 12, 11, false, '0.35 0.42 0.5'); y -= 22;
+    text(((S && S.title) || 'Live quiz') + '  ·  ' + new Date((S && S.at) || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), M, y - 12, 11, false, '0.35 0.42 0.5'); y -= 22;
     text('Quiz: percentage of correct answers. Polls: share of each answer, from most to least chosen.', M, y - 10, 9, false, '0.35 0.42 0.5'); y -= 28;
     (S.recap || []).filter(Boolean).forEach((r, i) => {
       let rows = (r.o || []).map((x, j) => ({ t: x.t, n: x.n, j }));
@@ -818,6 +823,30 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
     const url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  /* sauvegarde de la synthèse sur cet appareil : elle reste disponible même si la partie disparaît du serveur */
+  const RKEY = 'qz_recaps';
+  const pastRecaps = () => { try { return JSON.parse(localStorage.getItem(RKEY) || '[]') || []; } catch (e) { return []; } };
+  function storeRecap() {
+    if (isScreen || demo || !S || !(S.recap || []).filter(Boolean).length) return;
+    try {
+      const list = pastRecaps(), prev = list.find(x => x.code === S.code);
+      const item = { code: S.code, title: S.title || 'Live quiz', at: prev ? prev.at : Date.now(), recap: S.recap };
+      localStorage.setItem(RKEY, JSON.stringify([item].concat(list.filter(x => x.code !== S.code)).slice(0, 10)));
+    } catch (e) {}
+  }
+  const withRecap = (d, fn) => { const o = S; S = Object.assign({}, o || {}, { recap: d.recap, title: d.title, code: d.code, at: d.at }); try { return fn(); } finally { S = o; } };
+  function pastHTML() {
+    const list = pastRecaps(); if (!list.length) return '';
+    return '<div class="card past"><div class="kicker">Previous summaries (saved on this device)</div>' + list.map((r, i) =>
+      '<div class="prow"><span><b>' + esc(r.title) + '</b><div class="muted">' + new Date(r.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' · game ' + esc(r.code) + ' · ' + plural((r.recap || []).filter(Boolean).length, 'question') + '</div></span>' +
+      '<button class="btn ghost sm" data-pdf="' + i + '">PDF</button><button class="btn ghost sm" data-xls="' + i + '">Excel</button></div>').join('') + '</div>';
+  }
+  function bindPast() {
+    const list = pastRecaps();
+    document.querySelectorAll('[data-pdf]').forEach(b => b.onclick = () => withRecap(list[+b.dataset.pdf], savePDF));
+    document.querySelectorAll('[data-xls]').forEach(b => b.onclick = () => withRecap(list[+b.dataset.xls], downloadRecap));
   }
 
   const PHASE_ICONS = {
@@ -1062,8 +1091,9 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
         '<div><label>Time per question (seconds)</label><input id="du" type="number" min="5" max="300" value="30"></div>' +
         '<label class="check"><input id="lv" type="checkbox" checked> Show live percentages during the question (otherwise only at the reveal)</label>' +
         '<div><label>Running order</label><div class="muted" style="margin-bottom:8px">One blank line between two steps, in the order you will run them.<br><b>Question:</b> the question, then 2 to 4 answers. The correct one starts with * (without *, it is a poll). A line starting with &gt; is the explanation.<br><b>Scene screen:</b> “SCENE: 4. ASCENT – Scene name”, then one time or place cue per line. They appear one after another, on your command.<br><b>Content screen:</b> “CONTENT: title”, then the text. A line starting with - becomes a bullet.</div><textarea id="qs"></textarea></div>' +
-        '<button class="btn" id="cr">Create the game</button>',
+        '<button class="btn" id="cr">Create the game</button>' + pastHTML(),
         () => {
+          bindPast();
           $('#qs').value = quizText();
           $('#cr').onclick = async () => {
             const keep = { qs: $('#qs').value, du: $('#du').value, ti: $('#ti').value, lv: $('#lv').checked };
@@ -1107,6 +1137,7 @@ function client(DEFAULT_QUIZ, HAS_LOGO, DEFAULT_TEXT) {
         '<div class="foot"><button class="btn" id="nx">' + nextLabel() + '</button>' + back() + '<div class="meta" id="ans"></div></div>',
         () => { $('#nx').onclick = () => act('next'); });
     }
+    storeRecap(); // la synthèse est gardée sur cet appareil dès l’écran de fin
     set(header() + '<h1>Thank you all</h1><div class="card recap"><div class="kicker">Summary</div>' + recapRows() +
       '<div class="muted" style="margin-top:10px">Quiz: percentage of correct answers. Polls: share of each answer, from most to least chosen.</div></div>' +
       '<div class="spacer"></div><div class="foot endfoot"><button class="btn" id="nw">New game</button><button class="btn ghost" id="rs">Replay with the same participants</button>' + (isScreen ? '' : '<button class="btn ghost" id="dl">Download (Excel)</button><button class="btn ghost" id="pr">Save as PDF</button>') + back() + '</div>',
